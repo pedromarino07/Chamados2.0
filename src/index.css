@@ -8,18 +8,33 @@
 
 @layer base {
   body {
-    @apply bg-[#F5F5F4] text-gray-900;
+    @apply bg-[#F5F5F4] text-gray-900 overflow-x-hidden;
   }
 }
 
 /* Correção Visual para quebra de texto */
 .break-text {
-  word-break: break-all;
-  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
   max-width: 100%;
 }
 
 .content-container {
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Category, Ticket } from '../types';
-import { X, Send, Clock, AlertCircle, PauseCircle, CheckCircle2 } from 'lucide-react';
+import { X, Send, Clock, AlertCircle, PauseCircle, CheckCircle2, RotateCcw, History } from 'lucide-react';
 import { motion } from 'motion/react';
+import TicketHistoryList from './TicketHistoryList';
 
 interface TicketModalProps {
   user: User;
@@ -18,10 +19,13 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
   const [extension, setExtension] = useState(user.extension || '');
   const [requesterName, setRequesterName] = useState(user.name);
   const [sectorManual, setSectorManual] = useState(user.sector);
+  const [sectors, setSectors] = useState<{id: number, name: string}[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [technicians, setTechnicians] = useState<User[]>([]);
+  const [reopeningReason, setReopeningReason] = useState('');
+  const [showReopenForm, setShowReopenForm] = useState(false);
 
   const isViewMode = !!ticket;
 
@@ -35,7 +39,13 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
   }, [ticket]);
 
   useEffect(() => {
-    if (user.role === 'admin') {
+    fetch('/api/sectors')
+      .then(res => res.json())
+      .then(data => setSectors(data));
+  }, []);
+
+  useEffect(() => {
+    if (user.role === 'admin' || user.role === 'tecnico') {
       fetch('/api/users')
         .then(res => res.json())
         .then(data => setTechnicians(data.filter((u: User) => u.role === 'tecnico' || u.role === 'admin')));
@@ -86,9 +96,9 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requester_id: user.role === 'admin' ? null : user.id,
-          requester_name: user.role === 'admin' ? requesterName : user.name,
-          sector: user.role === 'admin' ? sectorManual : user.sector,
+          requester_id: (user.role === 'admin' || user.role === 'tecnico') ? null : user.id,
+          requester_name: (user.role === 'admin' || user.role === 'tecnico') ? requesterName : user.name,
+          sector: (user.role === 'admin' || user.role === 'tecnico') ? sectorManual : user.sector,
           category_id: user.role === 'colaborador' ? 1 : parseInt(categoryId), // Default or hidden for colaborador
           description,
           urgency,
@@ -113,13 +123,46 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
       case 'pending':
         return <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><Clock className="w-3 h-3"/> Pendente</span>;
       case 'in_progress':
-        return <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><AlertCircle className="w-3 h-3"/> Em Atendimento</span>;
+        return <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><AlertCircle className="w-3 h-3"/> Em Andamento</span>;
       case 'on_hold':
         return <span className="flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><PauseCircle className="w-3 h-3"/> Em Espera</span>;
       case 'finished':
         return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Finalizado</span>;
+      case 'resolved':
+        return <span className="flex items-center gap-1 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Resolvido</span>;
       default:
         return null;
+    }
+  };
+
+  const handleRequesterAction = async (action: 'finished' | 'in_progress', customComment?: string) => {
+    if (action === 'in_progress' && !reopeningReason) {
+      setShowReopenForm(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/tickets/${ticket?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: action,
+          changed_by: user.id,
+          comment: customComment || (action === 'in_progress' ? reopeningReason : 'Chamado finalizado pelo solicitante.'),
+          reopening_reason: action === 'in_progress' ? reopeningReason : null
+        }),
+      });
+
+      if (response.ok) {
+        onSuccess();
+      } else {
+        setError('Erro ao processar ação.');
+      }
+    } catch (err) {
+      setError('Erro de conexão.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,7 +183,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
           </button>
         </div>
 
-        <form onSubmit={isEditMode ? handleUpdate : handleSubmit} className="p-8 space-y-6 overflow-y-auto content-container">
+        <form onSubmit={isEditMode ? handleUpdate : handleSubmit} className="p-8 space-y-6 overflow-y-auto content-container pb-10">
           {isViewMode && (
             <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status Atual</span>
@@ -148,10 +191,10 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Solicitante</label>
-              {user.role === 'admin' && !isViewMode ? (
+              {(user.role === 'admin' || user.role === 'tecnico') && !isViewMode ? (
                 <input 
                   type="text" 
                   value={requesterName}
@@ -166,22 +209,25 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Setor</label>
-              {user.role === 'admin' && !isViewMode ? (
-                <input 
-                  type="text" 
+              {(user.role === 'admin' || user.role === 'tecnico') && !isViewMode ? (
+                <select 
                   value={sectorManual}
                   onChange={(e) => setSectorManual(e.target.value)}
                   className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
-                  placeholder="Setor"
                   required
-                />
+                >
+                  <option value="">Selecione o setor...</option>
+                  {sectors.map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
               ) : (
                 <input type="text" disabled value={isViewMode ? ticket.sector : user.sector} className="w-full bg-gray-50 p-3 rounded-xl text-sm border border-gray-100 text-gray-500" />
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Ramal</label>
               <input 
@@ -210,7 +256,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
             </div>
           </div>
 
-          {(!isViewMode && user.role !== 'colaborador') || (isViewMode && (ticket.category_name || user.role === 'admin')) ? (
+          {(!isViewMode && user.role !== 'colaborador') || (isViewMode && (ticket.category_name || user.role === 'admin' || user.role === 'tecnico')) ? (
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Categoria</label>
               <select 
@@ -230,7 +276,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
 
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descrição do Pedido</label>
-            <div className={`w-full p-4 rounded-xl text-sm border border-gray-200 ${isViewMode ? 'bg-gray-50 text-gray-700 break-text' : 'focus:ring-2 focus:ring-emerald-500 outline-none transition-all'}`}>
+            <div className={`w-full p-4 rounded-xl text-sm border border-gray-200 min-h-[100px] ${isViewMode ? 'bg-gray-50 text-gray-700 break-text overflow-y-visible' : 'focus:ring-2 focus:ring-emerald-500 outline-none transition-all'}`}>
               {isViewMode ? (
                 description
               ) : (
@@ -253,49 +299,134 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
             </div>
           )}
 
+          {isViewMode && ticket.reopening_reason && (
+            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+              <label className="block text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                <RotateCcw className="w-3 h-3" /> Motivo da Reabertura
+              </label>
+              <p className="text-sm text-red-800 break-text">{ticket.reopening_reason}</p>
+            </div>
+          )}
+
+          {isViewMode && (
+            <div className="pt-4 border-t border-gray-100">
+              <TicketHistoryList ticketId={ticket.id} />
+            </div>
+          )}
+
           {error && (
             <p className="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-lg border border-red-100">
               {error}
             </p>
           )}
 
-          <div className="flex gap-4 pt-4 shrink-0">
-            <button 
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
-            >
-              {isViewMode ? 'Fechar' : 'Cancelar'}
-            </button>
-            {!isViewMode && (
-              <button 
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
-              >
-                {loading ? 'Enviando...' : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    Enviar Chamado
-                  </>
-                )}
-              </button>
+          <div className="flex flex-col gap-4 pt-4 shrink-0">
+            {isViewMode && ticket.status === 'resolved' && (user.role === 'admin' || user.role === 'tecnico') && (
+              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                <p className="text-xs text-emerald-800 font-medium text-center mb-3">Aguardando validação do solicitante. Deseja encerrar administrativamente?</p>
+                <button 
+                  type="button"
+                  onClick={() => handleRequesterAction('finished', 'Encerramento Administrativo')}
+                  disabled={loading}
+                  className="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                >
+                  <CheckCircle2 className="w-5 h-5" /> Encerrar Definitivamente
+                </button>
+              </div>
             )}
-            {isViewMode && user.role === 'admin' && (
+
+            {isViewMode && ticket.status === 'resolved' && (ticket.requester_id === user.id) && (
+              <div className="space-y-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                <p className="text-xs text-indigo-800 font-medium text-center">O técnico marcou este chamado como resolvido. Você confirma a solução?</p>
+                
+                {showReopenForm ? (
+                  <div className="space-y-2">
+                    <textarea 
+                      value={reopeningReason}
+                      onChange={(e) => setReopeningReason(e.target.value)}
+                      placeholder="Descreva por que o problema não foi resolvido..."
+                      className="w-full p-3 text-sm border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none resize-none bg-white"
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => setShowReopenForm(false)}
+                        className="flex-1 px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => handleRequesterAction('in_progress')}
+                        disabled={loading || !reopeningReason}
+                        className="flex-1 bg-red-600 text-white px-4 py-2 text-xs font-bold rounded-lg hover:bg-red-700 transition-all disabled:opacity-50"
+                      >
+                        Confirmar Reabertura
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => handleRequesterAction('finished')}
+                      disabled={loading}
+                      className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                    >
+                      <CheckCircle2 className="w-5 h-5" /> Sim, Finalizar
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setShowReopenForm(true)}
+                      disabled={loading}
+                      className="flex-1 bg-red-50 text-red-600 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-all border border-red-100"
+                    >
+                      <RotateCcw className="w-5 h-5" /> Não, Reabrir
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-4">
               <button 
                 type="button"
-                onClick={() => isEditMode ? handleUpdate(new Event('submit') as any) : setIsEditMode(true)}
-                disabled={loading}
-                className={`flex-1 ${isEditMode ? 'bg-emerald-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg`}
+                onClick={onClose}
+                className="flex-1 px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
               >
-                {loading ? 'Salvando...' : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5" />
-                    {isEditMode ? 'Salvar' : 'Editar'}
-                  </>
-                )}
+                {isViewMode ? 'Fechar' : 'Cancelar'}
               </button>
-            )}
+              {!isViewMode && (
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                >
+                  {loading ? 'Enviando...' : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      Enviar Chamado
+                    </>
+                  )}
+                </button>
+              )}
+              {isViewMode && (user.role === 'admin' || user.role === 'tecnico') && (
+                <button 
+                  type="button"
+                  onClick={() => isEditMode ? handleUpdate(new Event('submit') as any) : setIsEditMode(true)}
+                  disabled={loading}
+                  className={`flex-1 ${isEditMode ? 'bg-emerald-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg`}
+                >
+                  {loading ? 'Salvando...' : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      {isEditMode ? 'Salvar' : 'Editar'}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </motion.div>

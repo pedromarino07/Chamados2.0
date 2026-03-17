@@ -133,7 +133,7 @@ export default function UserManagement() {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nome Completo</label>
             <div className="relative">
@@ -214,18 +214,6 @@ export default function UserManagement() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ramal</label>
-            <input
-              type="text"
-              required
-              value={formData.extension}
-              onChange={(e) => setFormData({ ...formData, extension: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-              placeholder="Ex: 2005"
-            />
-          </div>
-
           <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-4">
             {error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl border border-red-100">{error}</p>}
             {success && <p className="text-emerald-600 text-sm font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-100">{success}</p>}
@@ -245,7 +233,7 @@ export default function UserManagement() {
         <div className="p-6 border-b border-gray-100">
           <h3 className="font-bold text-gray-700">Usuários Cadastrados</h3>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50">
@@ -290,6 +278,45 @@ export default function UserManagement() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {users.map((u) => (
+            <div key={u.id} className="p-4 space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-bold text-gray-900">{u.name}</h4>
+                  <p className="font-mono text-[10px] text-gray-500">{u.login}</p>
+                </div>
+                <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
+                  u.role === 'admin' ? 'bg-purple-50 text-purple-600' :
+                  u.role === 'tecnico' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-600'
+                }`}>
+                  {u.role}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Setor: {u.sector || '---'}</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleEdit(u)}
+                    className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-[10px] font-bold uppercase"
+                  >
+                    <Key className="w-3 h-3" />
+                    Editar
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(u.id)}
+                    className="flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-[10px] font-bold uppercase"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

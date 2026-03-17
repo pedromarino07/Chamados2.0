@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, Ticket, Category } from '../types';
 import { BarChart3, Users, PieChart, TrendingUp, Filter, Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -19,6 +19,15 @@ interface Stats {
   bySector: { sector: string; count: number }[];
   byCategory: { category: string; count: number }[];
   byStatus: { status: string; count: number }[];
+  counts: {
+    pending: number;
+    in_progress: number;
+    on_hold: number;
+    resolved: number;
+    finished: number;
+  };
+  byTechnician: { technician: string; count: number }[];
+  total: number;
 }
 
 export default function AdminView({ user, tickets, categories, onUpdate, activeSubView }: AdminViewProps) {
@@ -27,61 +36,126 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
+  // Pagination state for monitoring table
+  const [monitoringData, setMonitoringData] = useState<{
+    tickets: Ticket[];
+    totalPages: number;
+    currentPage: number;
+  }>({ tickets: [], totalPages: 1, currentPage: 1 });
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchMonitoringTickets = useCallback(async (page: number, search: string = '') => {
+    try {
+      setMonitoringLoading(true);
+      const response = await fetch(`/api/tickets?page=${page}&limit=10${search ? `&search=${encodeURIComponent(search)}` : ''}`);
+      const data = await response.json();
+      setMonitoringData(data);
+    } catch (err) {
+      console.error('Erro ao buscar monitoramento:', err);
+    } finally {
+      setMonitoringLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
+    if (activeSubView === 'dashboard') {
+      fetchMonitoringTickets(monitoringData.currentPage, searchTerm);
+      const interval = setInterval(() => fetchMonitoringTickets(monitoringData.currentPage, searchTerm), 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeSubView, monitoringData.currentPage, searchTerm, fetchMonitoringTickets]);
+
+  const ticketsHash = tickets.map(t => `${t.id}-${t.status}`).join(',');
+
+  useEffect(() => {
+    // Only show loading state on initial load to prevent flashing
+    if (!stats) setLoading(true);
+    
     fetch('/api/stats')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Erro na resposta do servidor');
+        return res.json();
+      })
       .then(data => setStats(data))
+      .catch(err => {
+        console.error('Erro ao buscar estatísticas:', err);
+        if (!stats) {
+          setStats({
+            bySector: [],
+            byCategory: [],
+            byStatus: [],
+            counts: { pending: 0, in_progress: 0, on_hold: 0, resolved: 0, finished: 0 },
+            byTechnician: [],
+            total: 0
+          });
+        }
+      })
       .finally(() => setLoading(false));
-  }, [tickets]);
+  }, [ticketsHash]); // Re-fetch only when a ticket is added, removed, or changes status
 
   if (loading || !stats) return <div className="animate-pulse flex items-center justify-center h-64 text-gray-400 font-bold uppercase tracking-widest">Carregando estatísticas...</div>;
 
   const renderDashboard = () => (
     <div className="space-y-8">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Geral</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Geral</span>
           </div>
-          <p className="text-4xl font-light">{tickets.length}</p>
+          <p className="text-3xl md:text-4xl font-light">{tickets.length}</p>
         </div>
         
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
               <BarChart3 className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pendentes</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pendentes</span>
           </div>
-          <p className="text-4xl font-light text-amber-600">
-            {stats.byStatus.find(s => s.status === 'pending')?.count || 0}
+          <p className="text-3xl md:text-4xl font-light text-amber-600">
+            {stats.counts.pending}
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Em Andamento</span>
+          </div>
+          <p className="text-3xl md:text-4xl font-light text-blue-600">
+            {stats.counts.in_progress + stats.counts.on_hold}
+          </p>
+        </div>
+
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-              <PieChart className="w-5 h-5" />
+              <CheckCircle2 className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Resolvidos</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Resolvidos</span>
           </div>
-          <p className="text-4xl font-light text-emerald-600">
-            {stats.byStatus.find(s => s.status === 'finished')?.count || 0}
+          <p className="text-3xl md:text-4xl font-light text-emerald-600">
+            {stats.counts.resolved}
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
-              <Users className="w-5 h-5" />
+            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Setores Ativos</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Finalizados</span>
           </div>
-          <p className="text-4xl font-light">{stats.bySector.length}</p>
+          <p className="text-3xl md:text-4xl font-light text-emerald-600">
+            {stats.counts.finished}
+          </p>
         </div>
       </div>
 
@@ -133,11 +207,28 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
 
       {/* Recent Activity Table */}
       <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h3 className="font-bold text-gray-700">Monitoramento em Tempo Real</h3>
-          <button className="text-xs text-emerald-600 font-bold uppercase hover:underline">Ver Todos</button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Buscar por descrição..." 
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setMonitoringData(prev => ({ ...prev, currentPage: 1 }));
+                }}
+                className="w-full sm:w-64 pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+              />
+              <Filter className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+              Página {monitoringData.currentPage} de {monitoringData.totalPages}
+            </span>
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className={`hidden md:block overflow-x-auto custom-scrollbar ${monitoringLoading ? 'opacity-50' : ''}`}>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50">
@@ -150,7 +241,7 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {tickets.slice(0, 10).map((ticket) => (
+              {monitoringData.tickets.map((ticket) => (
                 <tr 
                   key={ticket.id} 
                   onClick={() => {
@@ -166,11 +257,16 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
                       ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
+                      ticket.status === 'resolved' ? 'bg-indigo-50 text-indigo-600' :
                       ticket.status === 'pending' ? 'bg-amber-50 text-amber-600' : 
                       ticket.status === 'on_hold' ? 'bg-orange-50 text-orange-600' :
                       'bg-blue-50 text-blue-600'
                     }`}>
-                      {ticket.status}
+                      {ticket.status === 'in_progress' ? 'Em Andamento' : 
+                       ticket.status === 'pending' ? 'Pendente' :
+                       ticket.status === 'on_hold' ? 'Em Espera' :
+                       ticket.status === 'resolved' ? 'Resolvido' :
+                       ticket.status === 'finished' ? 'Finalizado' : ticket.status}
                     </span>
                   </td>
                   <td className="p-4 text-xs text-gray-400">{new Date(ticket.created_at).toLocaleString()}</td>
@@ -178,6 +274,91 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {monitoringData.tickets.map((ticket) => (
+            <div 
+              key={ticket.id} 
+              onClick={() => {
+                setSelectedTicket(ticket);
+                setIsModalOpen(true);
+              }}
+              className="p-4 space-y-3 active:bg-gray-50 transition-colors"
+            >
+              <div className="flex justify-between items-start">
+                <span className="font-mono text-[10px] text-gray-400">#{ticket.id}</span>
+                <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
+                  ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
+                  ticket.status === 'resolved' ? 'bg-indigo-50 text-indigo-600' :
+                  ticket.status === 'pending' ? 'bg-amber-50 text-amber-600' : 
+                  ticket.status === 'on_hold' ? 'bg-orange-50 text-orange-600' :
+                  'bg-blue-50 text-blue-600'
+                }`}>
+                  {ticket.status === 'in_progress' ? 'Em Andamento' : 
+                   ticket.status === 'pending' ? 'Pendente' :
+                   ticket.status === 'on_hold' ? 'Em Espera' :
+                   ticket.status === 'resolved' ? 'Resolvido' :
+                   ticket.status === 'finished' ? 'Finalizado' : ticket.status}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Solicitante</p>
+                <p className="text-sm font-medium text-gray-900">{ticket.requester_name}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Setor</p>
+                  <p className="text-sm text-gray-600">{ticket.sector}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Técnico</p>
+                  <p className="text-sm text-gray-600">{ticket.technician_name || '---'}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400">{new Date(ticket.created_at).toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        
+        {/* Pagination Controls */}
+        <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
+          <button 
+            onClick={() => fetchMonitoringTickets(monitoringData.currentPage - 1)}
+            disabled={monitoringData.currentPage === 1}
+            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            Anterior
+          </button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, monitoringData.totalPages) }, (_, i) => {
+              // Show up to 5 pages around current page
+              let pageNum = monitoringData.currentPage - 2 + i;
+              if (monitoringData.currentPage <= 2) pageNum = i + 1;
+              if (monitoringData.currentPage >= monitoringData.totalPages - 1) pageNum = monitoringData.totalPages - 4 + i;
+              
+              if (pageNum > 0 && pageNum <= monitoringData.totalPages) {
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => fetchMonitoringTickets(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${monitoringData.currentPage === pageNum ? 'bg-gray-900 text-white shadow-md scale-110' : 'text-gray-400 hover:bg-gray-200'}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              }
+              return null;
+            })}
+          </div>
+          <button 
+            onClick={() => fetchMonitoringTickets(monitoringData.currentPage + 1)}
+            disabled={monitoringData.currentPage === monitoringData.totalPages}
+            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            Próximo
+          </button>
         </div>
       </div>
     </div>
@@ -189,13 +370,13 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
         <div>
           <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
             {activeSubView === 'dashboard' && 'Painel Administrativo'}
-            {activeSubView === 'reports' && 'Relatórios e Estatísticas'}
-            {activeSubView === 'users' && 'Gestão de Usuários'}
+            {activeSubView === 'reports' && 'Indicadores de Desempenho'}
+            {activeSubView === 'users' && 'Usuários'}
             {activeSubView === 'settings' && 'Configurações do Sistema'}
           </h2>
           <p className="text-gray-500 italic serif">
             {activeSubView === 'dashboard' && 'Gestão Centralizada do Helpdesk'}
-            {activeSubView === 'reports' && 'Análise de performance e produtividade'}
+            {activeSubView === 'reports' && 'Análise de performance e produtividade em tempo real'}
             {activeSubView === 'users' && 'Controle de acesso e colaboradores'}
             {activeSubView === 'settings' && 'Personalização de categorias e setores'}
           </p>
@@ -213,9 +394,6 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
               Abrir Chamado
             </button>
           )}
-          <button className="bg-white p-3 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors shadow-sm">
-            <Filter className="w-5 h-5" />
-          </button>
         </div>
       </header>
 
@@ -226,7 +404,7 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
         transition={{ duration: 0.3 }}
       >
         {activeSubView === 'dashboard' && renderDashboard()}
-        {activeSubView === 'reports' && <Reports stats={stats} tickets={tickets} />}
+        {activeSubView === 'reports' && <Reports stats={stats} tickets={tickets} user={user} />}
         {activeSubView === 'users' && <UserManagement />}
         {activeSubView === 'settings' && <Settings categories={categories} onUpdate={onUpdate} />}
       </motion.div>

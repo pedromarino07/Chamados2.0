@@ -23,7 +23,7 @@ export default function ResetPassword({ user, onSuccess }: ResetPasswordProps) {
       return pw
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "") // Remove accents
-        .replace(/[^a-zA-Z]/g, "")      // Keep ONLY letters
+        .replace(/[^a-zA-Z0-9]/g, "")    // Keep letters and numbers
         .toLowerCase();
     };
 
@@ -31,7 +31,7 @@ export default function ResetPassword({ user, onSuccess }: ResetPasswordProps) {
     const sanitizedConfirm = sanitizePassword(confirmPassword);
 
     if (sanitizedPw.length < 4) {
-      setError('A senha deve ter pelo menos 4 letras.');
+      setError('A senha deve ter pelo menos 4 caracteres.');
       return;
     }
 
@@ -80,14 +80,14 @@ export default function ResetPassword({ user, onSuccess }: ResetPasswordProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Nova Senha (apenas letras)
+              Nova Senha (letras e números)
             </label>
             <input
               type="password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e) => setNewPassword(e.target.value.toLowerCase())}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
-              placeholder="Mínimo 4 letras"
+              placeholder="Mínimo 4 caracteres"
               required
             />
           </div>

@@ -15,7 +15,7 @@ export interface User {
   is_first_login: boolean;
 }
 
-export type TicketStatus = 'pending' | 'in_progress' | 'on_hold' | 'finished';
+export type TicketStatus = 'pending' | 'in_progress' | 'on_hold' | 'resolved' | 'finished';
 
 export interface Ticket {
   id: number;
@@ -27,6 +27,7 @@ export interface Ticket {
   urgency: 'baixa' | 'media' | 'alta';
   extension: string;
   hold_justification: string | null;
+  reopening_reason?: string | null;
   created_at: string;
   updated_at: string;
   finished_at: string | null;
@@ -46,9 +47,10 @@ export interface Category {
 export interface TicketHistory {
   id: number;
   ticket_id: number;
-  status: TicketStatus;
+  old_status: TicketStatus | null;
+  new_status: TicketStatus;
   changed_by: number;
-  comment: string;
+  comment: string | null;
   timestamp: string;
-  user_name?: string;
+  changed_by_name?: string;
 }

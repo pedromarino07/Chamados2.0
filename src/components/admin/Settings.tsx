@@ -95,7 +95,7 @@ export default function Settings({ categories, onUpdate }: SettingsProps) {
           <h3 className="text-lg font-bold text-gray-900">Categorias de Chamado</h3>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 mb-6">
           <input
             type="text"
             value={newCategory}
@@ -105,7 +105,7 @@ export default function Settings({ categories, onUpdate }: SettingsProps) {
           />
           <button 
             onClick={handleAddCategory}
-            className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition-colors flex justify-center items-center"
           >
             <Plus className="w-6 h-6" />
           </button>
@@ -152,7 +152,7 @@ export default function Settings({ categories, onUpdate }: SettingsProps) {
           <h3 className="text-lg font-bold text-gray-900">Setores do Hospital</h3>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 mb-6">
           <input
             type="text"
             value={newSector}
@@ -162,7 +162,7 @@ export default function Settings({ categories, onUpdate }: SettingsProps) {
           />
           <button 
             onClick={handleAddSector}
-            className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-700 transition-colors"
+            className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-700 transition-colors flex justify-center items-center"
           >
             <Plus className="w-6 h-6" />
           </button>
