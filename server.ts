@@ -124,7 +124,14 @@ async function initDb() {
     isDbInitialized = true;
     dbInitError = null;
   } catch (err: any) {
-    dbInitError = err.message || String(err);
+    let message = err.message || String(err);
+    
+    // Specific check for 1.1.1.1 which is a common configuration error
+    if (message.includes('1.1.1.1')) {
+      message = "Erro de Configuração: O host do banco de dados está definido como '1.1.1.1' (DNS da Cloudflare). Por favor, altere a variável DB_HOST para o endereço IP real do seu servidor PostgreSQL nas configurações do AI Studio.";
+    }
+    
+    dbInitError = message;
     console.error("Erro ao inicializar banco de dados:", err);
     console.warn("O servidor continuará rodando, mas as APIs de banco de dados falharão até que a conexão seja corrigida.");
   }

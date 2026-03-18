@@ -109,14 +109,13 @@ export default function Reports({ stats: initialStats, tickets, user }: ReportsP
           if (!val) return val;
           const lowerVal = val.toLowerCase();
           if (lowerVal.includes('oklab') || lowerVal.includes('oklch')) {
-            // Very simplified conversion: if it's brand orange, use hex
-            // Tailwind v4 oklch values for orange/blue
+            // Brand colors
             if (lowerVal.includes('0.627 0.194 31.01') || lowerVal.includes('0.627 0.194 31')) return '#f15a22';
             if (lowerVal.includes('0.45 0.05 250')) return '#336699';
             if (lowerVal.includes('0.967 0.001 286.375')) return '#f8fafc'; // slate-50
             if (lowerVal.includes('0.922 0.011 290.588')) return '#f1f5f9'; // slate-100
             if (lowerVal.includes('0.869 0.022 292.24')) return '#e2e8f0'; // slate-200
-            return '#414042'; // Default gray for everything else
+            return '#414042'; // Default dark gray
           }
           return val;
         };
@@ -132,7 +131,24 @@ export default function Reports({ stats: initialStats, tickets, user }: ReportsP
             }
           });
 
-          // Also check for inline styles and computed styles
+          // Improve legibility for technician names and numbers (Requirement 2)
+          if (el.classList.contains('text-gray-700') || el.classList.contains('text-gray-600')) {
+            el.style.color = '#414042';
+            el.style.fontWeight = '800'; // Extra bold for names
+          }
+          
+          if (el.classList.contains('text-4xl')) {
+            el.style.fontSize = '54px'; // Larger numbers
+            el.style.fontWeight = '900';
+            el.style.color = el.style.color || '#111827';
+          }
+
+          // Force fixed width for charts during capture (Requirement 3)
+          if (el.classList.contains('recharts-responsive-container')) {
+            el.style.width = '500px';
+            el.style.height = '300px';
+          }
+
           const style = el.style;
           ['backgroundColor', 'color', 'borderColor', 'outlineColor', 'fill', 'stroke'].forEach(prop => {
             const val = (style as any)[prop];
@@ -141,7 +157,6 @@ export default function Reports({ stats: initialStats, tickets, user }: ReportsP
             }
           });
 
-          // Check computed style for any oklch/oklab and override it
           const computedStyle = window.getComputedStyle(el);
           ['backgroundColor', 'color', 'borderColor', 'outlineColor', 'fill', 'stroke'].forEach(prop => {
             const val = (computedStyle as any)[prop];
@@ -150,7 +165,6 @@ export default function Reports({ stats: initialStats, tickets, user }: ReportsP
             }
           });
 
-          // Also check for tailwind-style variables if any
           for (let j = 0; j < computedStyle.length; j++) {
             const key = computedStyle[j];
             if (key.startsWith('--')) {
@@ -164,30 +178,29 @@ export default function Reports({ stats: initialStats, tickets, user }: ReportsP
       };
 
       const html2canvasOptions = {
-        scale: 2, 
+        scale: 3, // Higher scale for better quality
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
         onclone: (clonedDoc: Document) => cleanupOklab(clonedDoc),
         ignoreElements: (element: Element) => {
-          // Ignore complex icons or elements that might cause issues
           return element.classList.contains('lucide') || 
-                 element.tagName.toLowerCase() === 'svg' && !element.closest('.recharts-wrapper');
+                 (element.tagName.toLowerCase() === 'svg' && !element.closest('.recharts-wrapper'));
         }
       };
 
-      // 1. Summary Page
+      // PAGE 1: Summary and Sectors
       await addLetterhead(pdf);
       
-      // Title
-      pdf.setFontSize(20);
-      pdf.setTextColor(colorBlue[0], colorBlue[1], colorBlue[2]);
+      // Title (18pt, Blue #336699) (Requirement 2)
+      pdf.setFontSize(18);
+      pdf.setTextColor(51, 102, 153);
       pdf.setFont('helvetica', 'bold');
       pdf.text('INDICADORES DE DESEMPENHO - HELPDESK', pageWidth / 2, marginTop - 15, { align: 'center' });
       
       // Period
       pdf.setFontSize(11);
-      pdf.setTextColor(colorGray[0], colorGray[1], colorGray[2]);
+      pdf.setTextColor(65, 64, 66);
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Período: ${new Date(startDate).toLocaleDateString('pt-BR')} até ${new Date(endDate).toLocaleDateString('pt-BR')}`, marginLeft, marginTop - 5);
       
@@ -197,52 +210,43 @@ export default function Reports({ stats: initialStats, tickets, user }: ReportsP
         const imgData = canvas.toDataURL('image/png');
         const imgWidth = contentWidth;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', marginLeft, marginTop, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', marginLeft, marginTop + 10, imgWidth, imgHeight);
         
-        let currentY = marginTop + imgHeight + 20;
+        let currentY = marginTop + 10 + imgHeight + 30; // Increased spacing (Requirement 1)
 
-        // Sector Chart (on same page if fits, else new page)
+        // Sector Chart (Page 1)
         if (sectorRef.current) {
+          pdf.setFontSize(18);
+          pdf.setTextColor(51, 102, 153);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('DISTRIBUIÇÃO POR SETORES', marginLeft, currentY - 10);
+
           const sectorCanvas = await html2canvas(sectorRef.current, html2canvasOptions);
           const sectorImg = sectorCanvas.toDataURL('image/png');
           const sectorHeight = (sectorCanvas.height * contentWidth) / sectorCanvas.width;
           
-          if (currentY + sectorHeight > pageHeight - marginBottom) {
-            pdf.addPage();
-            await addLetterhead(pdf);
-            addFooter(pdf);
-            currentY = marginTop;
-          }
-
-          pdf.setFontSize(14);
-          pdf.setTextColor(colorBlue[0], colorBlue[1], colorBlue[2]);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Setores Atendidos', marginLeft, currentY - 5);
-          
           pdf.addImage(sectorImg, 'PNG', marginLeft, currentY, contentWidth, sectorHeight);
-          currentY += sectorHeight + 20;
         }
+      }
+      
+      addFooter(pdf);
 
-        // Technician Performance
-        if (techRef.current) {
-          const techCanvas = await html2canvas(techRef.current, html2canvasOptions);
-          const techImg = techCanvas.toDataURL('image/png');
-          const techHeight = (techCanvas.height * contentWidth) / techCanvas.width;
+      // PAGE 2: Technician Performance (Requirement 4)
+      if (techRef.current) {
+        pdf.addPage();
+        await addLetterhead(pdf);
+        addFooter(pdf);
 
-          if (currentY + techHeight > pageHeight - marginBottom) {
-            pdf.addPage();
-            await addLetterhead(pdf);
-            addFooter(pdf);
-            currentY = marginTop;
-          }
+        pdf.setFontSize(18);
+        pdf.setTextColor(51, 102, 153);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('PERFORMANCE POR TÉCNICO', pageWidth / 2, marginTop - 15, { align: 'center' });
 
-          pdf.setFontSize(14);
-          pdf.setTextColor(colorBlue[0], colorBlue[1], colorBlue[2]);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Performance por Técnico', marginLeft, currentY - 5);
-          
-          pdf.addImage(techImg, 'PNG', marginLeft, currentY, contentWidth, techHeight);
-        }
+        const techCanvas = await html2canvas(techRef.current, html2canvasOptions);
+        const techImg = techCanvas.toDataURL('image/png');
+        const techHeight = (techCanvas.height * contentWidth) / techCanvas.width;
+        
+        pdf.addImage(techImg, 'PNG', marginLeft, marginTop + 10, contentWidth, techHeight);
       }
 
       addFooter(pdf);

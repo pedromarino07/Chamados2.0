@@ -35,7 +35,9 @@ export default function DBStatusBanner() {
           <div>
             <p className="font-bold text-sm">Erro de Conexão com o Banco de Dados</p>
             <p className="text-xs opacity-90">
-              {status?.error || 'Verifique as configurações do PostgreSQL no AI Studio.'}
+              {status?.error?.includes('1.1.1.1') 
+                ? "Configuração Incorreta: '1.1.1.1' é um servidor DNS. Use o IP real do seu banco de dados no AI Studio (Configurações > Secrets > DB_HOST)."
+                : (status?.error || 'Verifique as configurações do PostgreSQL no AI Studio.')}
             </p>
           </div>
         </div>
