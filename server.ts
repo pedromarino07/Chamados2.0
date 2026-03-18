@@ -12,11 +12,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // PostgreSQL Connection Pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'helpdesk',
+  port: parseInt(process.env.DB_PORT || '5432'),
   ssl: {
-    rejectUnauthorized: false // ISSO É OBRIGATÓRIO NO RENDER
-  },
-  connectionTimeoutMillis: 5000, // Dá 5 segundos para tentar conectar
+    rejectUnauthorized: false
+  }
 });
 
 let isDbInitialized = false;
@@ -481,11 +484,27 @@ async function startServer() {
       if (role === 'colaborador') {
         whereClauses.push(`t.requester_id = $${paramIndex++}`);
         params.push(userId);
+      } else if (role === 'tecnico') {
+        if (statusFilter === 'finished') {
+          // Technicians only see tickets they handled in history
+          whereClauses.push(`t.technician_id = $${paramIndex++}`);
+          params.push(userId);
+        } else if (statusFilter === 'active') {
+          // Technicians see all pending tickets + their own active tickets
+          whereClauses.push(`(t.status = 'pending' OR t.technician_id = $${paramIndex++})`);
+          params.push(userId);
+          whereClauses.push(`t.status IN ('pending', 'in_progress', 'on_hold')`);
+        } else {
+          // General fetch (for stats): See all pending + their own (active or finished)
+          whereClauses.push(`(t.status = 'pending' OR t.technician_id = $${paramIndex++})`);
+          params.push(userId);
+        }
       }
 
-      if (statusFilter === 'active') {
-        whereClauses.push(`t.status IN ('pending', 'in_progress')`);
-      } else if (statusFilter === 'finished') {
+      if (statusFilter === 'active' && role !== 'tecnico') {
+        // For non-technicians, active queue includes pending, in_progress, and on_hold
+        whereClauses.push(`t.status IN ('pending', 'in_progress', 'on_hold')`);
+      } else if (statusFilter === 'finished' && role !== 'tecnico') {
         whereClauses.push(`t.status = 'finished'`);
       }
 
