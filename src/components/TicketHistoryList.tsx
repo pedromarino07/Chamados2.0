@@ -32,10 +32,10 @@ export default function TicketHistoryList({ ticketId }: TicketHistoryListProps) 
   const getStatusColor = (status: TicketStatus | null) => {
     if (!status) return 'text-gray-400';
     switch (status) {
-      case 'pending': return 'text-amber-600';
-      case 'in_progress': return 'text-blue-600';
+      case 'pending': return 'text-brand-orange';
+      case 'in_progress': return 'text-brand-blue';
       case 'on_hold': return 'text-orange-600';
-      case 'resolved': return 'text-indigo-600';
+      case 'resolved': return 'text-emerald-600';
       case 'finished': return 'text-emerald-600';
       default: return 'text-gray-600';
     }

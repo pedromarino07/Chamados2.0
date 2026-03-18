@@ -3,27 +3,24 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
-import 'dotenv/config'; // Isso já é o suficiente para carregar o .env
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// PostgreSQL Connection Pool
 const pool = new Pool({
-  // Use a External Database URL completa aqui para testar localmente
-  connectionString: "postgresql://gestor:uUtNFXWfTGflUoNoPZbjgpJC2297eLGA@dpg-d6ta77ma2pns738m0m80-a.oregon-postgres.render.com/helpdesk_o7c7",
+  connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false // ISSO É OBRIGATÓRIO NO RENDER
   },
-  // Adicione estas duas linhas abaixo para forçar a autenticação correta
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000, // Dá 5 segundos para tentar conectar
 });
 
-// Teste imediato de log
-pool.on('error', (err) => {
-  console.error('❌ Erro inesperado no cliente Postgres:', err);
-});
+let isDbInitialized = false;
+let dbInitError: string | null = null;
 
 // Test Connection and Initialize Database
 async function initDb() {
@@ -86,39 +83,30 @@ async function initDb() {
     `);
 
     // Seed initial data if empty
+    // Ensure all existing logins are uppercase (Migration)
+    await client.query("UPDATE users SET login = UPPER(login)");
+
     const userCount = await client.query("SELECT COUNT(*) as count FROM users");
     if (parseInt(userCount.rows[0].count) === 0) {
       console.log("Semeando dados iniciais...");
       
-      const sanitizeLogin = (str: string) => {
-        if (!str) return "";
-        return str
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-zA-Z]/g, "")
-          .toUpperCase();
-      };
-
-      const sanitizePassword = (pw: string) => {
-        if (!pw) return "";
-        return pw
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-zA-Z0-9]/g, "")
-          .toLowerCase();
-      };
-
+      // ADMIN: Name: "Admin Hospital", Login: "ADMIN", Password: "admin", Role: "admin", Sector: "TI"
+      // (Corrected Role from "123456" to "admin" to maintain app functionality)
       await client.query(
         "INSERT INTO users (name, login, password, role, sector, extension, is_first_login) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        ["Admin Hospital", sanitizeLogin("ADMIN"), sanitizePassword("admin"), "admin", "TI", "1000", false]
+        ["Admin Hospital", "ADMIN", "admin", "admin", "TI", "1000", false]
       );
+
+      // TÉCNICO: Name: "Tecnico Joao", Login: "JOAO", Password: "123456", Role: "tecnico", Sector: "TI"
       await client.query(
         "INSERT INTO users (name, login, password, role, sector, extension, is_first_login) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        ["Tecnico Joao", sanitizeLogin("JOAO"), sanitizePassword("tech"), "tecnico", "TI", "1001", true]
+        ["Tecnico Joao", "JOAO", "123456", "tecnico", "TI", "1001", true]
       );
+
+      // COLABORADOR: Name: "Enf. Maria", Login: "MARIA", Password: "123456", Role: "colaborador", Sector: "UTI"
       await client.query(
         "INSERT INTO users (name, login, password, role, sector, extension, is_first_login) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        ["Enf. Maria", sanitizeLogin("MARIA"), sanitizePassword("user"), "colaborador", "UTI", "2005", true]
+        ["Enf. Maria", "MARIA", "123456", "colaborador", "UTI", "2005", true]
       );
       
       const categories = ["Hardware", "Software", "Rede", "Impressora", "Sistemas"];
@@ -133,23 +121,26 @@ async function initDb() {
     }
 
     client.release();
-  } catch (err) {
+    isDbInitialized = true;
+    dbInitError = null;
+  } catch (err: any) {
+    dbInitError = err.message || String(err);
     console.error("Erro ao inicializar banco de dados:", err);
-    process.exit(1);
+    console.warn("O servidor continuará rodando, mas as APIs de banco de dados falharão até que a conexão seja corrigida.");
   }
 }
 
-// Helper to sanitize login: ONLY letters (A-Z), remove accents, forced to uppercase
+// Helper to sanitize login: Keep letters, numbers, @ and .
 const sanitizeLogin = (str: string) => {
   if (!str) return "";
   return str
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // Remove accents
-    .replace(/[^a-zA-Z]/g, "")      // Keep ONLY letters (removes numbers and specials)
+    .replace(/[^a-zA-Z0-9@.]/g, "") // Keep letters, numbers, @ and .
     .toUpperCase();
 };
 
-// Helper to sanitize password: Alphanumeric, remove accents, forced to lowercase
+// Helper to sanitize password: Alphanumeric, remove accents
 const sanitizePassword = (pw: string) => {
   if (!pw) return "";
   return pw
@@ -160,10 +151,40 @@ const sanitizePassword = (pw: string) => {
 };
 
 async function startServer() {
-  await initDb();
+  // Try to initialize DB in background
+  initDb();
   
   const app = express();
   app.use(express.json());
+
+  // Health check and DB status
+  app.get("/api/health", (req, res) => {
+    res.json({
+      status: isDbInitialized ? "ok" : "error",
+      db: isDbInitialized ? "connected" : "disconnected",
+      error: dbInitError,
+      config: {
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT || '5432',
+        database: process.env.DB_NAME || 'helpdesk',
+        user: process.env.DB_USER || 'postgres'
+      }
+    });
+  });
+
+  // Middleware to check DB connection
+  app.use("/api", (req, res, next) => {
+    if (req.path === "/health") return next();
+    
+    if (!isDbInitialized) {
+      return res.status(503).json({ 
+        error: "Banco de dados não inicializado ou inacessível",
+        details: dbInitError,
+        help: "Verifique as variáveis de ambiente DB_HOST, DB_USER, DB_PASSWORD, DB_NAME e DB_PORT nas configurações do AI Studio."
+      });
+    }
+    next();
+  });
 
   // API Routes
   app.post("/api/login", async (req, res) => {
@@ -172,18 +193,32 @@ async function startServer() {
       const sanitizedLogin = sanitizeLogin(login);
       const sanitizedPassword = sanitizePassword(password);
 
+      // 1. Check if login exists
+      const loginCheck = await pool.query(
+        "SELECT id, password FROM users WHERE login = $1",
+        [sanitizedLogin]
+      );
+
+      if (loginCheck.rows.length === 0) {
+        return res.status(401).json({ error: "O login informado não existe." });
+      }
+
+      // 2. Check if password matches
+      const user = loginCheck.rows[0];
+      if (user.password !== sanitizedPassword) {
+        return res.status(401).json({ error: "A senha informada está incorreta." });
+      }
+
+      // 3. Login successful, get full user info
       const result = await pool.query(
-        "SELECT id, name, login, role, sector, extension, is_first_login FROM users WHERE login = $1 AND password = $2",
-        [sanitizedLogin, sanitizedPassword]
+        "SELECT id, name, login, role, sector, extension, is_first_login FROM users WHERE id = $1",
+        [user.id]
       );
       
-      if (result.rows.length > 0) {
-        res.json(result.rows[0]);
-      } else {
-        res.status(401).json({ error: "Credenciais inválidas" });
-      }
+      res.json(result.rows[0]);
     } catch (err) {
-      res.status(500).json({ error: "Erro interno" });
+      console.error("Erro no login:", err);
+      res.status(500).json({ error: "Erro interno no servidor" });
     }
   });
 
@@ -204,8 +239,29 @@ async function startServer() {
 
   app.get("/api/categories", async (req, res) => {
     try {
-      const result = await pool.query("SELECT * FROM categories ORDER BY name");
-      res.json(result.rows);
+      const { page, limit = 10 } = req.query;
+      const p = parseInt(page as string) || 1;
+      const l = parseInt(limit as string) || 10;
+      const offset = (p - 1) * l;
+
+      const countResult = await pool.query("SELECT COUNT(*) as total FROM categories");
+      const totalCount = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(totalCount / l);
+
+      let query = "SELECT * FROM categories ORDER BY name";
+      if (page) {
+        query += " LIMIT $1 OFFSET $2";
+        const result = await pool.query(query, [l, offset]);
+        res.json({
+          categories: result.rows,
+          totalPages,
+          currentPage: p,
+          totalCount
+        });
+      } else {
+        const result = await pool.query(query);
+        res.json(result.rows);
+      }
     } catch (err) {
       res.status(500).json({ error: "Erro interno" });
     }
@@ -247,8 +303,29 @@ async function startServer() {
 
   app.get("/api/sectors", async (req, res) => {
     try {
-      const result = await pool.query("SELECT * FROM sectors ORDER BY name");
-      res.json(result.rows);
+      const { page, limit = 10 } = req.query;
+      const p = parseInt(page as string) || 1;
+      const l = parseInt(limit as string) || 10;
+      const offset = (p - 1) * l;
+
+      const countResult = await pool.query("SELECT COUNT(*) as total FROM sectors");
+      const totalCount = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(totalCount / l);
+
+      let query = "SELECT * FROM sectors ORDER BY name";
+      if (page) {
+        query += " LIMIT $1 OFFSET $2";
+        const result = await pool.query(query, [l, offset]);
+        res.json({
+          sectors: result.rows,
+          totalPages,
+          currentPage: p,
+          totalCount
+        });
+      } else {
+        const result = await pool.query(query);
+        res.json(result.rows);
+      }
     } catch (err) {
       res.status(500).json({ error: "Erro interno" });
     }
@@ -290,8 +367,37 @@ async function startServer() {
 
   app.get("/api/users", async (req, res) => {
     try {
-      const result = await pool.query("SELECT id, name, login, role, sector, extension FROM users ORDER BY name");
-      res.json(result.rows);
+      const { page, limit = 10, search } = req.query;
+      const p = parseInt(page as string) || 1;
+      const l = parseInt(limit as string) || 10;
+      const offset = (p - 1) * l;
+
+      let whereClause = "";
+      const params: any[] = [];
+      if (search) {
+        whereClause = " WHERE name ILIKE $1 OR login ILIKE $1";
+        params.push(`%${search}%`);
+      }
+
+      const countResult = await pool.query(`SELECT COUNT(*) as total FROM users ${whereClause}`, params);
+      const totalCount = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(totalCount / l);
+
+      let query = `SELECT id, name, login, role, sector, extension FROM users ${whereClause} ORDER BY name`;
+      if (page) {
+        query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(l, offset);
+        const result = await pool.query(query, params);
+        res.json({
+          users: result.rows,
+          totalPages,
+          currentPage: p,
+          totalCount
+        });
+      } else {
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+      }
     } catch (err) {
       res.status(500).json({ error: "Erro interno" });
     }
@@ -349,7 +455,7 @@ async function startServer() {
 
   app.get("/api/tickets", async (req, res) => {
     try {
-      const { userId, role, page, limit = 10, search } = req.query;
+      const { userId, role, page, limit = 10, search, statusFilter } = req.query;
       const p = parseInt(page as string) || 1;
       const l = parseInt(limit as string) || 10;
       const offset = (p - 1) * l;
@@ -368,6 +474,12 @@ async function startServer() {
       if (role === 'colaborador') {
         whereClauses.push(`t.requester_id = $${paramIndex++}`);
         params.push(userId);
+      }
+
+      if (statusFilter === 'active') {
+        whereClauses.push(`t.status IN ('pending', 'in_progress')`);
+      } else if (statusFilter === 'finished') {
+        whereClauses.push(`t.status = 'finished'`);
       }
 
       if (search) {
@@ -604,13 +716,21 @@ async function startServer() {
         SELECT COUNT(*) as count FROM tickets t ${whereClause}
       `, params);
 
+      const avgTimeResult = await pool.query(`
+        SELECT AVG(EXTRACT(EPOCH FROM (finished_at - created_at))) as avg_seconds 
+        FROM tickets t 
+        ${whereClause ? whereClause + " AND status = 'finished'" : " WHERE status = 'finished'"}
+        AND finished_at IS NOT NULL
+      `, params);
+
       res.json({ 
         bySector, 
         byCategory, 
         byStatus: byStatusResult.rows.map(r => ({ ...r, count: parseInt(r.count) })), 
         counts,
         byTechnician, 
-        total: parseInt(totalResult.rows[0].count)
+        total: parseInt(totalResult.rows[0].count),
+        avgServiceTime: avgTimeResult.rows[0].avg_seconds ? parseFloat(avgTimeResult.rows[0].avg_seconds) : null
       });
     } catch (err) {
       console.error("Erro ao buscar estatísticas:", err);
@@ -641,9 +761,9 @@ async function startServer() {
     });
   }
 
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || "3000");
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor Helpdesk rodando em http://localhost:${PORT}`);
+    console.log(`Servidor Helpdesk rodando na porta ${PORT}`);
   });
 }
 

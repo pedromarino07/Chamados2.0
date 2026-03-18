@@ -127,9 +127,9 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
       case 'on_hold':
         return <span className="flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><PauseCircle className="w-3 h-3"/> Em Espera</span>;
       case 'finished':
-        return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Finalizado</span>;
+        return <span className="flex items-center gap-1 text-brand-orange bg-brand-orange/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Finalizado</span>;
       case 'resolved':
-        return <span className="flex items-center gap-1 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Resolvido</span>;
+        return <span className="flex items-center gap-1 text-brand-blue bg-brand-blue/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Resolvido</span>;
       default:
         return null;
     }
@@ -173,10 +173,10 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-black/5 flex flex-col max-h-[90vh]"
       >
-        <div className="bg-gray-900 p-6 text-white flex items-center justify-between shrink-0">
+        <div className="bg-brand-blue p-6 text-white flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-xl font-bold">{isViewMode ? `Chamado #${ticket.id}` : 'Abrir Novo Chamado'}</h3>
-            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">Suporte de TI</p>
+            <p className="text-xs text-white/60 uppercase tracking-widest mt-1">Suporte de TI</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
             <X className="w-6 h-6" />
@@ -199,7 +199,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                   type="text" 
                   value={requesterName}
                   onChange={(e) => setRequesterName(e.target.value)}
-                  className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+                  className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-brand-orange outline-none transition-all" 
                   placeholder="Nome do Solicitante"
                   required
                 />
@@ -213,7 +213,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                 <select 
                   value={sectorManual}
                   onChange={(e) => setSectorManual(e.target.value)}
-                  className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+                  className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-brand-orange outline-none transition-all" 
                   required
                 >
                   <option value="">Selecione o setor...</option>
@@ -236,7 +236,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                 onChange={(e) => setExtension(e.target.value)}
                 disabled={isViewMode && !isEditMode}
                 placeholder="Ex: 1234"
-                className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500" 
+                className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-brand-orange outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500" 
                 required
               />
             </div>
@@ -246,7 +246,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                 value={urgency}
                 onChange={(e) => setUrgency(e.target.value as any)}
                 disabled={isViewMode && !isEditMode}
-                className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-brand-orange outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
                 required
               >
                 <option value="baixa">Baixa</option>
@@ -263,7 +263,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 disabled={isViewMode && !isEditMode}
-                className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full p-3 rounded-xl text-sm border border-gray-200 focus:ring-2 focus:ring-brand-orange outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
                 required
               >
                 <option value="">Selecione uma categoria...</option>
@@ -276,7 +276,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
 
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descrição do Pedido</label>
-            <div className={`w-full p-4 rounded-xl text-sm border border-gray-200 min-h-[100px] ${isViewMode ? 'bg-gray-50 text-gray-700 break-text overflow-y-visible' : 'focus:ring-2 focus:ring-emerald-500 outline-none transition-all'}`}>
+            <div className={`w-full p-4 rounded-xl text-sm border border-gray-200 min-h-[100px] ${isViewMode ? 'bg-gray-50 text-gray-700 break-text overflow-y-visible' : 'focus:ring-2 focus:ring-brand-orange outline-none transition-all'}`}>
               {isViewMode ? (
                 description
               ) : (
@@ -322,13 +322,13 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
 
           <div className="flex flex-col gap-4 pt-4 shrink-0">
             {isViewMode && ticket.status === 'resolved' && (user.role === 'admin' || user.role === 'tecnico') && (
-              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                <p className="text-xs text-emerald-800 font-medium text-center mb-3">Aguardando validação do solicitante. Deseja encerrar administrativamente?</p>
+              <div className="bg-brand-orange/5 p-4 rounded-2xl border border-brand-orange/10">
+                <p className="text-xs text-brand-orange font-medium text-center mb-3">Aguardando validação do solicitante. Deseja encerrar administrativamente?</p>
                 <button 
                   type="button"
                   onClick={() => handleRequesterAction('finished', 'Encerramento Administrativo')}
                   disabled={loading}
-                  className="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                  className="w-full bg-brand-orange text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
                 >
                   <CheckCircle2 className="w-5 h-5" /> Encerrar Definitivamente
                 </button>
@@ -336,8 +336,8 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
             )}
 
             {isViewMode && ticket.status === 'resolved' && (ticket.requester_id === user.id) && (
-              <div className="space-y-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-                <p className="text-xs text-indigo-800 font-medium text-center">O técnico marcou este chamado como resolvido. Você confirma a solução?</p>
+              <div className="space-y-4 bg-brand-blue/5 p-4 rounded-2xl border border-brand-blue/10">
+                <p className="text-xs text-brand-blue font-medium text-center">O técnico marcou este chamado como resolvido. Você confirma a solução?</p>
                 
                 {showReopenForm ? (
                   <div className="space-y-2">
@@ -401,7 +401,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                  className="flex-1 bg-brand-orange text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
                 >
                   {loading ? 'Enviando...' : (
                     <>
@@ -416,7 +416,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                   type="button"
                   onClick={() => isEditMode ? handleUpdate(new Event('submit') as any) : setIsEditMode(true)}
                   disabled={loading}
-                  className={`flex-1 ${isEditMode ? 'bg-emerald-600' : 'bg-blue-600'} text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg`}
+                  className={`flex-1 ${isEditMode ? 'bg-brand-orange' : 'bg-brand-blue'} text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg`}
                 >
                   {loading ? 'Salvando...' : (
                     <>

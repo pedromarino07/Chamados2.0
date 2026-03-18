@@ -59,14 +59,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F4] flex flex-col md:flex-row font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-brand-beige flex flex-col md:flex-row font-sans overflow-x-hidden">
       {/* Mobile Header */}
-      <header className="md:hidden bg-gray-900 text-white p-4 flex items-center justify-between sticky top-0 z-50 shadow-md">
+      <header className="md:hidden bg-brand-blue text-white p-4 flex items-center justify-between sticky top-0 z-50 shadow-md">
         <div className="flex items-center gap-2">
-          <div className="bg-emerald-500 p-1.5 rounded-lg">
+          <div className="bg-brand-orange p-1.5 rounded-lg">
             <TicketIcon className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-base tracking-tight">Helpdesk IT</span>
+          <span className="font-bold text-base tracking-tight">HELPDESK</span>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -86,15 +86,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white p-6 flex flex-col transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 bg-brand-blue text-white p-6 flex flex-col transform transition-transform duration-300 ease-in-out
         md:relative md:translate-x-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="hidden md:flex items-center gap-3 mb-10">
-          <div className="bg-emerald-500 p-2 rounded-lg">
+          <div className="bg-brand-orange p-2 rounded-lg shadow-lg shadow-brand-orange/20">
             <TicketIcon className="w-6 h-6 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight">Helpdesk IT</span>
+          <span className="font-bold text-xl tracking-tight">HELPDESK</span>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -104,7 +104,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 setActiveSubView('dashboard');
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'dashboard' ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'dashboard' ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
             >
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
@@ -118,7 +118,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   setActiveSubView('reports');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'reports' ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'reports' ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
               >
                 <BarChart3 className="w-5 h-5" />
                 Indicadores
@@ -128,7 +128,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   setActiveSubView('users');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'users' ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'users' ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
               >
                 <UserIcon className="w-5 h-5" />
                 Usuários
@@ -149,7 +149,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 setActiveSubView('settings');
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'settings' ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeSubView === 'settings' ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
             >
               <Settings className="w-5 h-5" />
               Configurações
@@ -159,17 +159,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
         <div className="mt-auto pt-6 border-t border-white/10">
           <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-              <UserIcon className="w-5 h-5 text-emerald-400" />
+            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+              <UserIcon className="w-5 h-5 text-white" />
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold truncate">{user.name}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">{user.role}</p>
+              <p className="text-[10px] text-white/50 uppercase tracking-widest">{user.role}</p>
             </div>
           </div>
           <button 
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-300 hover:bg-red-500/10 transition-colors"
           >
             <LogOut className="w-5 h-5" />
             Sair
@@ -186,7 +186,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         >
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
             </div>
           ) : renderView()}
         </motion.div>

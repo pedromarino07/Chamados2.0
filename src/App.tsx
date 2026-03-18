@@ -8,6 +8,7 @@ import { User } from './types';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ResetPassword from './components/ResetPassword';
+import DBStatusBanner from './components/DBStatusBanner';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -35,14 +36,29 @@ export default function App() {
   };
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <DBStatusBanner />
+        <Login onLogin={handleLogin} />
+      </>
+    );
   }
 
   if (user.is_first_login) {
-    return <ResetPassword user={user} onSuccess={handlePasswordReset} />;
+    return (
+      <>
+        <DBStatusBanner />
+        <ResetPassword user={user} onSuccess={handlePasswordReset} />
+      </>
+    );
   }
 
-  return <Dashboard user={user} onLogout={handleLogout} />;
+  return (
+    <>
+      <DBStatusBanner />
+      <Dashboard user={user} onLogout={handleLogout} />
+    </>
+  );
 }
 
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Ticket, Category } from '../types';
-import { BarChart3, Users, PieChart, TrendingUp, Filter, Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { BarChart3, Users, PieChart, TrendingUp, Filter, Plus, Clock, CheckCircle2, AlertCircle, Activity, PlusCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import TicketModal from './TicketModal';
 import UserManagement from './admin/UserManagement';
@@ -44,11 +44,12 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
   }>({ tickets: [], totalPages: 1, currentPage: 1 });
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [monitoringStatus, setMonitoringStatus] = useState<'active' | 'finished'>('active');
 
-  const fetchMonitoringTickets = useCallback(async (page: number, search: string = '') => {
+  const fetchMonitoringTickets = useCallback(async (page: number, search: string = '', status: string = 'active') => {
     try {
       setMonitoringLoading(true);
-      const response = await fetch(`/api/tickets?page=${page}&limit=10${search ? `&search=${encodeURIComponent(search)}` : ''}`);
+      const response = await fetch(`/api/tickets?page=${page}&limit=10&statusFilter=${status}${search ? `&search=${encodeURIComponent(search)}` : ''}`);
       const data = await response.json();
       setMonitoringData(data);
     } catch (err) {
@@ -60,11 +61,11 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
 
   useEffect(() => {
     if (activeSubView === 'dashboard') {
-      fetchMonitoringTickets(monitoringData.currentPage, searchTerm);
-      const interval = setInterval(() => fetchMonitoringTickets(monitoringData.currentPage, searchTerm), 5000);
+      fetchMonitoringTickets(monitoringData.currentPage, searchTerm, monitoringStatus);
+      const interval = setInterval(() => fetchMonitoringTickets(monitoringData.currentPage, searchTerm, monitoringStatus), 5000);
       return () => clearInterval(interval);
     }
-  }, [activeSubView, monitoringData.currentPage, searchTerm, fetchMonitoringTickets]);
+  }, [activeSubView, monitoringData.currentPage, searchTerm, monitoringStatus, fetchMonitoringTickets]);
 
   const ticketsHash = tickets.map(t => `${t.id}-${t.status}`).join(',');
 
@@ -100,60 +101,60 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
     <div className="space-y-8">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-brand-blue p-4 md:p-6 rounded-2xl border border-black/5 shadow-lg shadow-brand-blue/20 text-white">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+            <div className="p-2 bg-white/20 rounded-lg text-white">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Geral</span>
+            <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Total Geral</span>
           </div>
-          <p className="text-3xl md:text-4xl font-light">{tickets.length}</p>
+          <p className="text-3xl md:text-4xl font-black">{tickets.length}</p>
         </div>
         
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-brand-blue p-4 md:p-6 rounded-2xl border border-black/5 shadow-lg shadow-brand-blue/20 text-white">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
+            <div className="p-2 bg-white/20 rounded-lg text-white">
               <BarChart3 className="w-5 h-5" />
             </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pendentes</span>
+            <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Pendentes</span>
           </div>
-          <p className="text-3xl md:text-4xl font-light text-amber-600">
+          <p className="text-3xl md:text-4xl font-black">
             {stats.counts.pending}
           </p>
         </div>
 
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-brand-blue p-4 md:p-6 rounded-2xl border border-black/5 shadow-lg shadow-brand-blue/20 text-white">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+            <div className="p-2 bg-white/20 rounded-lg text-white">
               <AlertCircle className="w-5 h-5" />
             </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Em Andamento</span>
+            <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Em Andamento</span>
           </div>
-          <p className="text-3xl md:text-4xl font-light text-blue-600">
+          <p className="text-3xl md:text-4xl font-black">
             {stats.counts.in_progress + stats.counts.on_hold}
           </p>
         </div>
 
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="bg-brand-blue p-4 md:p-6 rounded-2xl border border-black/5 shadow-lg shadow-brand-blue/20 text-white">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+            <div className="p-2 bg-white/20 rounded-lg text-white">
               <CheckCircle2 className="w-5 h-5" />
             </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Resolvidos</span>
+            <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Resolvidos</span>
           </div>
-          <p className="text-3xl md:text-4xl font-light text-emerald-600">
+          <p className="text-3xl md:text-4xl font-black">
             {stats.counts.resolved}
           </p>
         </div>
 
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm sm:col-span-2 lg:col-span-1">
+        <div className="bg-brand-blue p-4 md:p-6 rounded-2xl border border-black/5 shadow-lg shadow-brand-blue/20 text-white sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+            <div className="p-2 bg-white/20 rounded-lg text-white">
               <CheckCircle2 className="w-5 h-5" />
             </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Finalizados</span>
+            <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Finalizados</span>
           </div>
-          <p className="text-3xl md:text-4xl font-light text-emerald-600">
+          <p className="text-3xl md:text-4xl font-black">
             {stats.counts.finished}
           </p>
         </div>
@@ -208,7 +209,32 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
       {/* Recent Activity Table */}
       <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="font-bold text-gray-700">Monitoramento em Tempo Real</h3>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-brand-blue/10 rounded-lg text-brand-blue">
+              <Activity className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-brand-gray">Monitoramento em Tempo Real</h3>
+          </div>
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl">
+            <button 
+              onClick={() => {
+                setMonitoringStatus('active');
+                setMonitoringData(prev => ({ ...prev, currentPage: 1 }));
+              }}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${monitoringStatus === 'active' ? 'bg-brand-orange text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              Ativos
+            </button>
+            <button 
+              onClick={() => {
+                setMonitoringStatus('finished');
+                setMonitoringData(prev => ({ ...prev, currentPage: 1 }));
+              }}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${monitoringStatus === 'finished' ? 'bg-brand-orange text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              Finalizados
+            </button>
+          </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <div className="relative">
               <input 
@@ -219,13 +245,10 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
                   setSearchTerm(e.target.value);
                   setMonitoringData(prev => ({ ...prev, currentPage: 1 }));
                 }}
-                className="w-full sm:w-64 pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                className="w-full sm:w-64 pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-orange outline-none transition-all"
               />
               <Filter className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
-              Página {monitoringData.currentPage} de {monitoringData.totalPages}
-            </span>
           </div>
         </div>
         <div className={`hidden md:block overflow-x-auto custom-scrollbar ${monitoringLoading ? 'opacity-50' : ''}`}>
@@ -241,40 +264,77 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {monitoringData.tickets.map((ticket) => (
-                <tr 
-                  key={ticket.id} 
-                  onClick={() => {
-                    setSelectedTicket(ticket);
-                    setIsModalOpen(true);
-                  }}
-                  className="text-sm hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <td className="p-4 font-mono text-xs text-gray-400">#{ticket.id}</td>
-                  <td className="p-4 font-medium text-gray-900">{ticket.requester_name}</td>
-                  <td className="p-4 text-gray-500">{ticket.sector}</td>
-                  <td className="p-4 text-gray-500">{ticket.technician_name || '---'}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
-                      ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
-                      ticket.status === 'resolved' ? 'bg-indigo-50 text-indigo-600' :
-                      ticket.status === 'pending' ? 'bg-amber-50 text-amber-600' : 
-                      ticket.status === 'on_hold' ? 'bg-orange-50 text-orange-600' :
-                      'bg-blue-50 text-blue-600'
-                    }`}>
-                      {ticket.status === 'in_progress' ? 'Em Andamento' : 
-                       ticket.status === 'pending' ? 'Pendente' :
-                       ticket.status === 'on_hold' ? 'Em Espera' :
-                       ticket.status === 'resolved' ? 'Resolvido' :
-                       ticket.status === 'finished' ? 'Finalizado' : ticket.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-xs text-gray-400">{new Date(ticket.created_at).toLocaleString()}</td>
+              {monitoringData.tickets.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-gray-400 italic">Nenhum chamado encontrado.</td>
                 </tr>
-              ))}
+              ) : (
+                monitoringData.tickets.map((ticket) => (
+                  <tr 
+                    key={ticket.id} 
+                    onClick={() => {
+                      setSelectedTicket(ticket);
+                      setIsModalOpen(true);
+                    }}
+                    className="text-sm hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <td className="p-4 font-mono text-xs text-gray-400">#{ticket.id}</td>
+                    <td className="p-4 font-medium text-gray-900">{ticket.requester_name}</td>
+                    <td className="p-4 text-gray-500">{ticket.sector}</td>
+                    <td className="p-4 text-gray-500">{ticket.technician_name || '---'}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
+                        ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
+                        ticket.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' :
+                        ticket.status === 'pending' ? 'bg-brand-orange/10 text-brand-orange' : 
+                        ticket.status === 'on_hold' ? 'bg-orange-50 text-orange-600' :
+                        'bg-brand-blue/10 text-brand-blue'
+                      }`}>
+                        {ticket.status === 'in_progress' ? 'Em Andamento' : 
+                         ticket.status === 'pending' ? 'Pendente' :
+                         ticket.status === 'on_hold' ? 'Em Espera' :
+                         ticket.status === 'resolved' ? 'Resolvido' :
+                         ticket.status === 'finished' ? 'Finalizado' : ticket.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-xs text-gray-400">{new Date(ticket.created_at).toLocaleString()}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {monitoringData.totalPages > 1 && (
+          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
+            <button 
+              onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+              disabled={monitoringData.currentPage === 1}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Anterior
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: monitoringData.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: pageNum }))}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${monitoringData.currentPage === pageNum ? 'bg-brand-orange text-white shadow-md scale-110' : 'text-brand-gray hover:bg-gray-200'}`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+            </div>
+            <button 
+              onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+              disabled={monitoringData.currentPage === monitoringData.totalPages}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Próximo
+            </button>
+          </div>
+        )}
 
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-gray-100">
@@ -388,7 +448,7 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
                 setSelectedTicket(null);
                 setIsModalOpen(true);
               }}
-              className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+              className="bg-brand-orange text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-[#d9511f] transition-all shadow-md"
             >
               <Plus className="w-5 h-5" />
               Abrir Chamado

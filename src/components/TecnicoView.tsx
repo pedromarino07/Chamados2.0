@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Ticket, Category } from '../types';
 import { Clock, CheckCircle2, AlertCircle, PauseCircle, UserPlus, ExternalLink, PlusCircle, History, RotateCcw } from 'lucide-react';
 import TicketModal from './TicketModal';
@@ -21,6 +21,36 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState('');
   const [localSearch, setLocalSearch] = useState('');
+
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0
+  });
+  const [displayTickets, setDisplayTickets] = useState<Ticket[]>([]);
+
+  const fetchPaginatedTickets = async (page: number) => {
+    try {
+      setLoading(true);
+      const statusFilter = activeTab === 'queue' ? 'active' : 'finished';
+      const response = await fetch(`/api/tickets?userId=${user.id}&role=${user.role}&page=${page}&limit=10&statusFilter=${statusFilter}${localSearch ? `&search=${encodeURIComponent(localSearch)}` : ''}`);
+      const data = await response.json();
+      setDisplayTickets(data.tickets || []);
+      setPagination({
+        currentPage: data.currentPage || 1,
+        totalPages: data.totalPages || 1,
+        totalCount: data.totalCount || 0
+      });
+    } catch (err) {
+      console.error('Erro ao buscar chamados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPaginatedTickets(1);
+  }, [activeTab, localSearch]);
 
   const handleAction = async (ticketId: number, action: string, extraData: any = {}) => {
     setLoading(true);
@@ -76,15 +106,15 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Pendente</span>;
+        return <span className="flex items-center gap-1 text-brand-orange bg-brand-orange/10 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Pendente</span>;
       case 'in_progress':
-        return <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Em Andamento</span>;
+        return <span className="flex items-center gap-1 text-brand-blue bg-brand-blue/10 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Em Andamento</span>;
       case 'on_hold':
         return <span className="flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Em Espera</span>;
       case 'finished':
         return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Finalizado</span>;
       case 'resolved':
-        return <span className="flex items-center gap-1 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Resolvido</span>;
+        return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Resolvido</span>;
       default:
         return null;
     }
@@ -99,8 +129,8 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Painel do Técnico</h2>
-          <p className="text-gray-500 italic serif">Bem-vindo, {user.name}</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-brand-gray tracking-tight">Painel do Técnico</h2>
+          <p className="text-brand-gray/60 italic serif">Bem-vindo, {user.name}</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           <div className="relative flex-1 sm:min-w-[250px]">
@@ -112,13 +142,13 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                 setLocalSearch(e.target.value);
                 onSearch(e.target.value);
               }}
-              className="w-full pl-10 pr-4 py-3 text-sm border border-black/5 bg-white rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm transition-all"
+              className="w-full pl-10 pr-4 py-3 text-sm border border-black/5 bg-white rounded-xl focus:ring-2 focus:ring-brand-orange outline-none shadow-sm transition-all"
             />
             <RotateCcw className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 rotate-90" />
           </div>
           <button 
             onClick={() => setShowModal(true)}
-            className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+            className="bg-brand-orange text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
           >
             <PlusCircle className="w-5 h-5" />
             + Abrir Chamado
@@ -126,13 +156,13 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
           <div className="flex bg-white rounded-xl p-1 border border-black/5 shadow-sm">
             <button 
               onClick={() => setActiveTab('queue')}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'queue' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'queue' ? 'bg-brand-blue text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Fila Ativa
             </button>
             <button 
               onClick={() => setActiveTab('history')}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-brand-blue text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Meu Histórico
             </button>
@@ -151,10 +181,10 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
               </div>
             </div>
             <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto custom-scrollbar">
-              {filteredTickets.length === 0 ? (
+              {displayTickets.length === 0 ? (
                 <div className="p-12 text-center text-gray-400 italic">Nenhum chamado encontrado.</div>
               ) : (
-                filteredTickets.map((ticket) => (
+                displayTickets.map((ticket) => (
                   <div 
                     key={ticket.id} 
                     onClick={() => {
@@ -162,13 +192,13 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                       // On mobile, we might want to scroll to details or open a modal, 
                       // but for now let's just let it stack and the user can scroll down.
                     }}
-                    className={`p-4 hover:bg-gray-50 transition-all cursor-pointer flex items-center justify-between group ${selectedTicket?.id === ticket.id ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : ''}`}
+                    className={`p-4 hover:bg-gray-50 transition-all cursor-pointer flex items-center justify-between group ${selectedTicket?.id === ticket.id ? 'bg-brand-orange/5 border-l-4 border-brand-orange' : ''}`}
                   >
                     <div className="flex gap-3 md:gap-4 items-center overflow-hidden">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         ticket.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
-                        ticket.status === 'finished' ? 'bg-emerald-100 text-emerald-600' :
-                        ticket.status === 'resolved' ? 'bg-indigo-100 text-indigo-600' :
+                        ticket.status === 'finished' ? 'bg-brand-orange/10 text-brand-orange' :
+                        ticket.status === 'resolved' ? 'bg-brand-blue/10 text-brand-blue' :
                         'bg-blue-100 text-blue-600'
                       }`}>
                         {ticket.status === 'pending' ? <Clock className="w-5 h-5" /> : 
@@ -193,6 +223,35 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                 ))
               )}
             </div>
+            {pagination.totalPages > 1 && (
+              <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
+                <button 
+                  onClick={() => fetchPaginatedTickets(pagination.currentPage - 1)}
+                  disabled={pagination.currentPage === 1}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Anterior
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => fetchPaginatedTickets(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${pagination.currentPage === pageNum ? 'bg-brand-orange text-white shadow-md scale-110' : 'text-brand-gray hover:bg-gray-200'}`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => fetchPaginatedTickets(pagination.currentPage + 1)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Próximo
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -203,7 +262,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Detalhes do Chamado</p>
-                  <h3 className="text-xl font-bold text-gray-900">#{selectedTicket.id}</h3>
+                  <h3 className="text-xl font-bold text-brand-gray">#{selectedTicket.id}</h3>
                 </div>
                 {getStatusBadge(selectedTicket.status)}
               </div>
@@ -266,7 +325,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                     <select 
                       value={classification}
                       onChange={(e) => setClassification(e.target.value)}
-                      className="w-full p-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="w-full p-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-orange outline-none"
                     >
                       <option value="">Manter atual...</option>
                       {categories.map(cat => (
@@ -285,7 +344,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                     <button 
                       onClick={() => handleAction(selectedTicket.id, 'in_progress')}
                       disabled={loading}
-                      className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                      className="w-full bg-brand-orange text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
                     >
                       <UserPlus className="w-5 h-5" /> Assumir Chamado
                     </button>
@@ -296,7 +355,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                       <button 
                         onClick={() => handleAction(selectedTicket.id, 'resolved')}
                         disabled={loading}
-                        className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
+                        className="w-full bg-brand-blue text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-blue/90 transition-all shadow-lg shadow-brand-blue/20"
                       >
                         <CheckCircle2 className="w-5 h-5" /> Marcar como Resolvido
                       </button>
@@ -324,7 +383,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                     <button 
                       onClick={() => handleAction(selectedTicket.id, 'finished', { comment: 'Encerramento Administrativo' })}
                       disabled={loading}
-                      className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                      className="w-full bg-brand-orange text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
                     >
                       <CheckCircle2 className="w-5 h-5" /> Encerrar Definitivamente
                     </button>
@@ -334,7 +393,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                     <button 
                       onClick={() => handleAction(selectedTicket.id, 'in_progress')}
                       disabled={loading}
-                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+                      className="w-full bg-brand-blue text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-blue/90 transition-all shadow-lg shadow-brand-blue/20"
                     >
                       <AlertCircle className="w-5 h-5" /> Retomar Atendimento
                     </button>
