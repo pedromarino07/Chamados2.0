@@ -1,22 +1,18 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const { Pool } = pg;
+console.log("Banco de dados configurado:", process.env.DATABASE_URL ? "Sim" : "Não");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // PostgreSQL Connection Pool
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'helpdesk',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }
