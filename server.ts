@@ -3,20 +3,26 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
-import dotenv from "dotenv";
-
-dotenv.config();
+import 'dotenv/config'; // Isso já é o suficiente para carregar o .env
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// PostgreSQL Connection Pool
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'helpdesk',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  // Use a External Database URL completa aqui para testar localmente
+  connectionString: "postgresql://gestor:uUtNFXWfTGflUoNoPZbjgpJC2297eLGA@dpg-d6ta77ma2pns738m0m80-a.oregon-postgres.render.com/helpdesk_o7c7",
+  ssl: {
+    rejectUnauthorized: false
+  },
+  // Adicione estas duas linhas abaixo para forçar a autenticação correta
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
+// Teste imediato de log
+pool.on('error', (err) => {
+  console.error('❌ Erro inesperado no cliente Postgres:', err);
 });
 
 // Test Connection and Initialize Database
