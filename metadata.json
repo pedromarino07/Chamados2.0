@@ -1,5 +1,5 @@
 {
-  "name": "Hospital IT Helpdesk",
+  "name": "Hospital Helpdesk",
   "description": "Sistema de chamados de TI responsivo para ambiente hospitalar com níveis de acesso para Colaboradores, Técnicos e Administradores.",
   "requestFramePermissions": []
 }
