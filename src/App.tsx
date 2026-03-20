@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { User } from './types';
+import { Toaster } from 'react-hot-toast';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ResetPassword from './components/ResetPassword';
@@ -38,6 +39,7 @@ export default function App() {
   if (!user) {
     return (
       <>
+        <Toaster position="top-right" />
         <DBStatusBanner />
         <Login onLogin={handleLogin} />
       </>
@@ -47,6 +49,7 @@ export default function App() {
   if (user.is_first_login) {
     return (
       <>
+        <Toaster position="top-right" />
         <DBStatusBanner />
         <ResetPassword user={user} onSuccess={handlePasswordReset} />
       </>
@@ -55,6 +58,7 @@ export default function App() {
 
   return (
     <>
+      <Toaster position="top-right" />
       <DBStatusBanner />
       <Dashboard user={user} onLogout={handleLogout} />
     </>

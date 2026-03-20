@@ -121,13 +121,13 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><Clock className="w-3 h-3"/> Pendente</span>;
+        return <span className="flex items-center gap-1 text-brand-orange bg-brand-orange/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><Clock className="w-3 h-3"/> Pendente</span>;
       case 'in_progress':
-        return <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><AlertCircle className="w-3 h-3"/> Em Andamento</span>;
+        return <span className="flex items-center gap-1 text-brand-blue bg-brand-blue/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><AlertCircle className="w-3 h-3"/> Em Andamento</span>;
       case 'on_hold':
         return <span className="flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><PauseCircle className="w-3 h-3"/> Em Espera</span>;
       case 'finished':
-        return <span className="flex items-center gap-1 text-brand-orange bg-brand-orange/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Finalizado</span>;
+        return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Finalizado</span>;
       case 'resolved':
         return <span className="flex items-center gap-1 text-brand-blue bg-brand-blue/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Resolvido</span>;
       default:
@@ -135,8 +135,8 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
     }
   };
 
-  const handleRequesterAction = async (action: 'finished' | 'in_progress', customComment?: string) => {
-    if (action === 'in_progress' && !reopeningReason) {
+  const handleRequesterAction = async (action: 'finished' | 'pending', customComment?: string) => {
+    if (action === 'pending' && !reopeningReason) {
       setShowReopenForm(true);
       return;
     }
@@ -149,8 +149,8 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
         body: JSON.stringify({ 
           status: action,
           changed_by: user.id,
-          comment: customComment || (action === 'in_progress' ? reopeningReason : 'Chamado finalizado pelo solicitante.'),
-          reopening_reason: action === 'in_progress' ? reopeningReason : null
+          comment: customComment || (action === 'pending' ? reopeningReason : 'Chamado finalizado pelo solicitante.'),
+          reopening_reason: action === 'pending' ? reopeningReason : null
         }),
       });
 
@@ -358,7 +358,7 @@ export default function TicketModal({ user, categories, ticket, onClose, onSucce
                       </button>
                       <button 
                         type="button"
-                        onClick={() => handleRequesterAction('in_progress')}
+                        onClick={() => handleRequesterAction('pending')}
                         disabled={loading || !reopeningReason}
                         className="flex-1 bg-red-600 text-white px-4 py-2 text-xs font-bold rounded-lg hover:bg-red-700 transition-all disabled:opacity-50"
                       >

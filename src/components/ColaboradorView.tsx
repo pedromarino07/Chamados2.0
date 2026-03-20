@@ -59,7 +59,7 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
       case 'finished':
         return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Finalizado</span>;
       case 'resolved':
-        return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Resolvido</span>;
+        return <span className="flex items-center gap-1 text-brand-blue bg-brand-blue/10 px-2 py-1 rounded-md text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3"/> Resolvido</span>;
       default:
         return null;
     }
@@ -265,6 +265,7 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
             setIsModalOpen(false);
             setSelectedTicket(null);
             onUpdate();
+            fetchPaginatedTickets(pagination.currentPage);
           }} 
         />
       )}

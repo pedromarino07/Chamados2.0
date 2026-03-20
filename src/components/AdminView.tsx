@@ -285,7 +285,7 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
                         ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
-                        ticket.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' :
+                        ticket.status === 'resolved' ? 'bg-brand-blue/10 text-brand-blue' :
                         ticket.status === 'pending' ? 'bg-brand-orange/10 text-brand-orange' : 
                         ticket.status === 'on_hold' ? 'bg-orange-50 text-orange-600' :
                         'bg-brand-blue/10 text-brand-blue'
@@ -351,10 +351,10 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
                 <span className="font-mono text-[10px] text-gray-400">#{ticket.id}</span>
                 <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
                   ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
-                  ticket.status === 'resolved' ? 'bg-indigo-50 text-indigo-600' :
-                  ticket.status === 'pending' ? 'bg-amber-50 text-amber-600' : 
+                  ticket.status === 'resolved' ? 'bg-brand-blue/10 text-brand-blue' :
+                  ticket.status === 'pending' ? 'bg-brand-orange/10 text-brand-orange' : 
                   ticket.status === 'on_hold' ? 'bg-orange-50 text-orange-600' :
-                  'bg-blue-50 text-blue-600'
+                  'bg-brand-blue/10 text-brand-blue'
                 }`}>
                   {ticket.status === 'in_progress' ? 'Em Andamento' : 
                    ticket.status === 'pending' ? 'Pendente' :

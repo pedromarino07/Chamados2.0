@@ -482,14 +482,13 @@ async function startServer() {
         params.push(userId);
       } else if (role === 'tecnico') {
         if (statusFilter === 'finished') {
-          // Technicians only see tickets they handled in history
+          // Technicians only see tickets they handled in history once they are finished
           whereClauses.push(`t.technician_id = $${paramIndex++}`);
           params.push(userId);
+          whereClauses.push(`t.status = 'finished'`);
         } else if (statusFilter === 'active') {
-          // Technicians see all pending tickets + their own active tickets
-          whereClauses.push(`(t.status = 'pending' OR t.technician_id = $${paramIndex++})`);
-          params.push(userId);
-          whereClauses.push(`t.status IN ('pending', 'in_progress', 'on_hold')`);
+          // Technicians see all active tickets (shared queue)
+          whereClauses.push(`t.status IN ('pending', 'in_progress', 'on_hold', 'resolved')`);
         } else {
           // General fetch (for stats): See all pending + their own (active or finished)
           whereClauses.push(`(t.status = 'pending' OR t.technician_id = $${paramIndex++})`);
@@ -498,8 +497,8 @@ async function startServer() {
       }
 
       if (statusFilter === 'active' && role !== 'tecnico') {
-        // For non-technicians, active queue includes pending, in_progress, and on_hold
-        whereClauses.push(`t.status IN ('pending', 'in_progress', 'on_hold')`);
+        // For non-technicians, active queue includes pending, in_progress, on_hold, and resolved
+        whereClauses.push(`t.status IN ('pending', 'in_progress', 'on_hold', 'resolved')`);
       } else if (statusFilter === 'finished' && role !== 'tecnico') {
         whereClauses.push(`t.status = 'finished'`);
       }
@@ -581,7 +580,7 @@ async function startServer() {
         if (status === 'finished') {
           updates.push("finished_at = CURRENT_TIMESTAMP");
         }
-        if (status === 'in_progress' && oldTicket.status === 'resolved') {
+        if ((status === 'in_progress' || status === 'pending') && oldTicket.status === 'resolved') {
           updates.push(`reopening_reason = $${paramIndex++}`);
           params.push(reopening_reason || comment || "");
         }

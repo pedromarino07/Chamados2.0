@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { User, Ticket, Category } from '../types';
-import { Clock, CheckCircle2, AlertCircle, PauseCircle, UserPlus, ExternalLink, PlusCircle, History, RotateCcw } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, PauseCircle, UserPlus, ExternalLink, PlusCircle, History, RotateCcw, Activity } from 'lucide-react';
+import { motion } from 'motion/react';
 import TicketModal from './TicketModal';
 import TicketHistoryList from './TicketHistoryList';
+import toast from 'react-hot-toast';
 
 interface TecnicoViewProps {
   user: User;
@@ -29,9 +31,12 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
   });
   const [displayTickets, setDisplayTickets] = useState<Ticket[]>([]);
 
-  const fetchPaginatedTickets = async (page: number) => {
+  const [showConfirmTakeover, setShowConfirmTakeover] = useState(false);
+  const [ticketToTakeover, setTicketToTakeover] = useState<Ticket | null>(null);
+
+  const fetchPaginatedTickets = async (page: number, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const statusFilter = activeTab === 'queue' ? 'active' : 'finished';
       const response = await fetch(`/api/tickets?userId=${user.id}&role=${user.role}&page=${page}&limit=10&statusFilter=${statusFilter}${localSearch ? `&search=${encodeURIComponent(localSearch)}` : ''}`);
       const data = await response.json();
@@ -44,13 +49,17 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
     } catch (err) {
       console.error('Erro ao buscar chamados');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchPaginatedTickets(1);
-  }, [activeTab, localSearch]);
+    const interval = setInterval(() => {
+      fetchPaginatedTickets(pagination.currentPage, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeTab, localSearch, pagination.currentPage]);
 
   const handleAction = async (ticketId: number, action: string, extraData: any = {}) => {
     setLoading(true);
@@ -63,7 +72,11 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
         comment: action === 'on_hold' ? justification : 
                  action === 'resolved' ? 'Chamado marcado como resolvido.' :
                  action === 'finished' ? 'Chamado encerrado definitivamente.' :
-                 action === 'in_progress' ? 'Atendimento retomado/iniciado.' : null
+                 action === 'in_progress' ? (
+                   selectedTicket?.technician_id && selectedTicket.technician_id !== user.id 
+                   ? `Atendimento assumido por ${user.name} (Anteriormente com ${selectedTicket.technician_name}).`
+                   : 'Atendimento retomado/iniciado.'
+                 ) : null
       };
       if (action === 'in_progress') {
         body.technician_id = user.id;
@@ -86,7 +99,17 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
       if (response.ok) {
         const updatedTicket = await response.json();
         console.log('Chamado atualizado com sucesso:', updatedTicket);
+        
+        if (action === 'in_progress') {
+          toast.success("Chamado assumido com sucesso!");
+        } else if (action === 'resolved') {
+          toast.success("Chamado resolvido!");
+        } else if (action === 'on_hold') {
+          toast.success("Chamado colocado em espera.");
+        }
+
         onUpdate();
+        await fetchPaginatedTickets(pagination.currentPage);
         setSelectedTicket(updatedTicket);
         setJustification('');
         setClassification('');
@@ -114,7 +137,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
       case 'finished':
         return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Finalizado</span>;
       case 'resolved':
-        return <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Resolvido</span>;
+        return <span className="flex items-center gap-1 text-brand-blue bg-brand-blue/10 px-2 py-1 rounded-md text-[10px] font-bold uppercase">Resolvido</span>;
       default:
         return null;
     }
@@ -122,7 +145,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
 
   const filteredTickets = tickets.filter(t => {
     if (activeTab === 'queue') return t.status !== 'finished';
-    return t.status === 'finished' && t.technician_id === user.id;
+    return t.status === 'finished';
   });
 
   return (
@@ -196,10 +219,10 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                   >
                     <div className="flex gap-3 md:gap-4 items-center overflow-hidden">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        ticket.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
-                        ticket.status === 'finished' ? 'bg-brand-orange/10 text-brand-orange' :
+                        ticket.status === 'pending' ? 'bg-brand-orange/10 text-brand-orange' : 
+                        ticket.status === 'finished' ? 'bg-emerald-50 text-emerald-600' :
                         ticket.status === 'resolved' ? 'bg-brand-blue/10 text-brand-blue' :
-                        'bg-blue-100 text-blue-600'
+                        'bg-brand-blue/10 text-brand-blue'
                       }`}>
                         {ticket.status === 'pending' ? <Clock className="w-5 h-5" /> : 
                          ticket.status === 'finished' ? <CheckCircle2 className="w-5 h-5" /> :
@@ -211,6 +234,9 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                           <span className="font-mono text-[10px] text-gray-400">#{ticket.id}</span>
                           <h4 className="font-bold text-gray-800 truncate max-w-[120px] sm:max-w-none">{ticket.requester_name}</h4>
                           <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded shrink-0">{ticket.sector}</span>
+                          {ticket.technician_name && (
+                            <span className="text-[10px] text-brand-blue font-medium italic">({ticket.technician_name})</span>
+                          )}
                         </div>
                         <p className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-xs break-all">{ticket.description}</p>
                       </div>
@@ -325,7 +351,8 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                     <select 
                       value={classification}
                       onChange={(e) => setClassification(e.target.value)}
-                      className="w-full p-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-orange outline-none"
+                      disabled={selectedTicket.status !== 'pending' && selectedTicket.technician_id !== user.id && user.role !== 'admin'}
+                      className="w-full p-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-orange outline-none disabled:bg-gray-50 disabled:text-gray-400"
                     >
                       <option value="">Manter atual...</option>
                       {categories.map(cat => (
@@ -340,73 +367,83 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
                     </div>
                   )}
 
-                  {selectedTicket.status === 'pending' && (
+                  {selectedTicket.technician_id !== user.id && selectedTicket.status !== 'finished' && (
                     <button 
-                      onClick={() => handleAction(selectedTicket.id, 'in_progress')}
+                      onClick={() => {
+                        if (selectedTicket.technician_id) {
+                          setTicketToTakeover(selectedTicket);
+                          setShowConfirmTakeover(true);
+                        } else {
+                          handleAction(selectedTicket.id, 'in_progress');
+                        }
+                      }}
                       disabled={loading}
-                      className="w-full bg-brand-orange text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
+                      className="w-full bg-[#f15a22] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#f15a22]/90 transition-all shadow-lg shadow-[#f15a22]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <UserPlus className="w-5 h-5" /> Assumir Chamado
+                      <UserPlus className="w-5 h-5" /> {selectedTicket.status === 'pending' ? 'Assumir Chamado' : 'Assumir Atendimento'}
                     </button>
                   )}
 
-                  {selectedTicket.status === 'in_progress' && (
+                  {((selectedTicket.technician_id === user.id || (user.role as string) === 'admin')) && (
                     <>
-                      <button 
-                        onClick={() => handleAction(selectedTicket.id, 'resolved')}
-                        disabled={loading}
-                        className="w-full bg-brand-blue text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-blue/90 transition-all shadow-lg shadow-brand-blue/20"
-                      >
-                        <CheckCircle2 className="w-5 h-5" /> Marcar como Resolvido
-                      </button>
-                      
-                      <div className="pt-4 border-t border-gray-100">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase block mb-2">Pausar Atendimento</label>
-                        <textarea 
-                          value={justification}
-                          onChange={(e) => setJustification(e.target.value)}
-                          placeholder="Justificativa técnica..."
-                          className="w-full p-3 text-sm border border-gray-200 rounded-xl mb-2 focus:ring-2 focus:ring-orange-500 outline-none resize-none"
-                        />
+                      {(selectedTicket.status === 'pending' || selectedTicket.status === 'on_hold' || selectedTicket.status === 'resolved') && (
                         <button 
-                          onClick={() => handleAction(selectedTicket.id, 'on_hold')}
-                          disabled={loading || !justification}
-                          className="w-full bg-orange-50 text-orange-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 transition-all"
+                          onClick={() => handleAction(selectedTicket.id, 'in_progress')}
+                          disabled={loading}
+                          className="w-full bg-[#f15a22] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#f15a22]/90 transition-all shadow-lg shadow-[#f15a22]/20 mb-3"
                         >
-                          <PauseCircle className="w-5 h-5" /> Colocar em Espera
+                          <Activity className="w-5 h-5" /> 
+                          {selectedTicket.status === 'pending' ? 'Iniciar Atendimento' : 'Retomar Atendimento'}
                         </button>
-                      </div>
+                      )}
+
+                      {selectedTicket.status === 'in_progress' && (
+                        <>
+                          <button 
+                            onClick={() => handleAction(selectedTicket.id, 'resolved')}
+                            disabled={loading}
+                            className="w-full bg-brand-blue text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-blue/90 transition-all shadow-lg shadow-brand-blue/20"
+                          >
+                            <CheckCircle2 className="w-5 h-5" /> Marcar como Resolvido
+                          </button>
+                          
+                          <div className="pt-4 border-t border-gray-100">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-2">Pausar Atendimento</label>
+                            <textarea 
+                              value={justification}
+                              onChange={(e) => setJustification(e.target.value)}
+                              placeholder="Justificativa técnica..."
+                              className="w-full p-3 text-sm border border-gray-200 rounded-xl mb-2 focus:ring-2 focus:ring-orange-500 outline-none resize-none"
+                            />
+                            <button 
+                              onClick={() => handleAction(selectedTicket.id, 'on_hold')}
+                              disabled={loading || !justification}
+                              className="w-full bg-orange-50 text-orange-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 transition-all"
+                            >
+                              <PauseCircle className="w-5 h-5" /> Colocar em Espera
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {selectedTicket.status === 'resolved' && (
+                        <button 
+                          onClick={() => handleAction(selectedTicket.id, 'finished', { comment: 'Encerramento Administrativo' })}
+                          disabled={loading}
+                          className="w-full bg-brand-orange text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20 mt-3"
+                        >
+                          <CheckCircle2 className="w-5 h-5" /> Encerrar Definitivamente
+                        </button>
+                      )}
                     </>
                   )}
-
-                  {selectedTicket.status === 'resolved' && (
-                    <button 
-                      onClick={() => handleAction(selectedTicket.id, 'finished', { comment: 'Encerramento Administrativo' })}
-                      disabled={loading}
-                      className="w-full bg-brand-orange text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
-                    >
-                      <CheckCircle2 className="w-5 h-5" /> Encerrar Definitivamente
-                    </button>
-                  )}
-
-                  {selectedTicket.status === 'on_hold' && (
-                    <button 
-                      onClick={() => handleAction(selectedTicket.id, 'in_progress')}
-                      disabled={loading}
-                      className="w-full bg-brand-blue text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-blue/90 transition-all shadow-lg shadow-brand-blue/20"
-                    >
-                      <AlertCircle className="w-5 h-5" /> Retomar Atendimento
-                    </button>
-                  )}
                   
-                  {selectedTicket.status !== 'pending' && selectedTicket.technician_id !== user.id && (
-                    <button 
-                      onClick={() => handleAction(selectedTicket.id, 'in_progress')}
-                      disabled={loading}
-                      className="w-full bg-purple-50 text-purple-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-100 transition-all border border-purple-100"
-                    >
-                      <UserPlus className="w-5 h-5" /> Assumir de {selectedTicket.technician_name}
-                    </button>
+                  {selectedTicket.technician_id !== user.id && user.role !== 'admin' && selectedTicket.status !== 'pending' && (
+                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-center">
+                      <p className="text-xs text-blue-700 font-medium">
+                        Este chamado está sendo atendido por <span className="font-bold">{selectedTicket.technician_name}</span>.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -433,6 +470,46 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
             onUpdate();
           }}
         />
+      )}
+
+      {showConfirmTakeover && ticketToTakeover && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-black/5"
+          >
+            <div className="flex items-center gap-3 text-brand-orange mb-4">
+              <AlertCircle className="w-6 h-6" />
+              <h3 className="text-lg font-bold">Transferir Atendimento</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Este chamado já está sendo atendido por <span className="font-bold text-brand-gray">{ticketToTakeover.technician_name}</span>. 
+              Deseja transferir o atendimento para você?
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  setShowConfirmTakeover(false);
+                  setTicketToTakeover(null);
+                }}
+                className="flex-1 px-4 py-2 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  handleAction(ticketToTakeover.id, 'in_progress');
+                  setShowConfirmTakeover(false);
+                  setTicketToTakeover(null);
+                }}
+                className="flex-1 bg-brand-orange text-white px-4 py-2 rounded-xl font-bold hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
+              >
+                Sim, Transferir
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );
