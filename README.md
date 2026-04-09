@@ -35,4 +35,4 @@ O foco principal é a **resolução rápida** e a **tomada de decisão baseada e
 
 1. **Clone o repositório:**
    ```bash
-   git clone [https://github.com/seu-usuario/helpdesk-santacasa.git](https://github.com/seu-usuario/helpdesk-santacasa.git)
+   git clone [https://github.com/pedromarino07/Chamados2.0](https://github.com/pedromarino07/Chamados2.0)
