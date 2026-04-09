@@ -1,20 +1,38 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" height="475" alt="GHBanner" src="public/Banner.png" />
+
+  # 🏥 Helpdesk - Santa Casa de Araras
+  **Sistema de Gestão de Chamados e Inteligência Operacional**
+
+  [ desenvolvido por: Pedro Marino Viana Lima ]
 </div>
 
-# Run and deploy your AI Studio app
+---
 
-This contains everything you need to run your app locally.
+## 🚀 Sobre o Projeto
 
-View your app in AI Studio: https://ai.studio/apps/62ee71d5-4123-4c10-9915-a84c1fe52140
+Este sistema foi desenvolvido para otimizar o fluxo de atendimento da **Santa Casa**, permitindo que a equipe de TI tenha controle total sobre os incidentes, visualize a performance em tempo real e gere relatórios executivos para a diretoria.
 
-## Run Locally
+O foco principal é a **resolução rápida** e a **tomada de decisão baseada em dados**, separando os atendimentos por categorias, setores e técnicos responsáveis.
 
-**Prerequisites:**  Node.js
+## ✨ Funcionalidades Principais
 
+* **Dashboard de Indicadores:** Visualização clara do Total de Chamados, Chamados Finalizados, Em Andamento e Tempo Médio de Atendimento (TMA).
+* **Distribuição por Categoria:** Gráfico de rosca dinâmico para identificar os maiores gargalos (Hardware, Software, Rede, etc.).
+* **Relatórios em PDF (Profissional):** Exportação em formato Paisagem (A4) com quebra de página automática, mantendo a identidade visual com o timbre da instituição.
+* **Gestão de Chamados:** Lógica avançada para assumir atendimentos e gerenciar reaberturas de chamados finalizados.
+* **Interface Responsiva:** Otimizado para dispositivos móveis, facilitando o uso pelos técnicos em trânsito pelo hospital.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠️ Tecnologias Utilizadas
+
+* **Frontend:** React.js com Tailwind CSS
+* **Gráficos:** Recharts para visualização de dados
+* **Backend:** Node.js & Express
+* **Banco de Dados:** PostgreSQL (Relacional)
+* **Geração de Documentos:** jsPDF e html2canvas
+
+## 💻 Como Executar Localmente
+
+1. **Clone o repositório:**
+   ```bash
+   git clone [https://github.com/seu-usuario/helpdesk-santacasa.git](https://github.com/seu-usuario/helpdesk-santacasa.git)
