@@ -1,21 +1,38 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import { rateLimit } from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
+
+/**
+ * GUIA DE MIGRAÇÃO (Render -> Local):
+ * 
+ * 1. Exportar do Render:
+ *    pg_dump -h <host_render> -U <user_render> -d <db_name_render> > backup.sql
+ * 
+ * 2. Importar no Local:
+ *    psql -h localhost -U postgres -d helpdesk < backup.sql
+ * 
+ * 3. Configurar .env local:
+ *    DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/helpdesk
+ */
 
 const { Pool } = pg;
 console.log("Banco de dados configurado:", process.env.DATABASE_URL ? "Sim" : "Não");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // PostgreSQL Connection Pool
+// Prioriza DATABASE_URL, mas permite SSL opcional para ambiente local
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: process.env.DATABASE_URL?.includes('render.com') || process.env.DB_SSL === 'true'
+    ? { rejectUnauthorized: false }
+    : false
 });
 
 let isDbInitialized = false;
@@ -161,20 +178,46 @@ async function startServer() {
   initDb();
   
   const app = express();
+
+  // 1. Segurança: Helmet para headers HTTP seguros
+  app.use(helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+    crossOriginEmbedderPolicy: false
+  }));
+
+  // 2. Segurança: CORS Restritivo
+  const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['*'];
+  app.use(cors({
+    origin: process.env.NODE_ENV === "production" ? allowedOrigins : true,
+    credentials: true
+  }));
+
+  // 3. Segurança: Rate Limiting para o Login
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: "Muitas tentativas de login. Tente novamente em 15 minutos." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   app.use(express.json());
 
   // Health check and DB status
   app.get("/api/health", (req, res) => {
+    // Log seguro: Não expõe senhas ou dados sensíveis
+    const dbConfig = {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || '5432',
+      database: process.env.DB_NAME || 'helpdesk',
+      user: process.env.DB_USER || 'postgres'
+    };
+
     res.json({
       status: isDbInitialized ? "ok" : "error",
       db: isDbInitialized ? "connected" : "disconnected",
       error: dbInitError,
-      config: {
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || '5432',
-        database: process.env.DB_NAME || 'helpdesk',
-        user: process.env.DB_USER || 'postgres'
-      }
+      config: dbConfig
     });
   });
 
@@ -193,7 +236,7 @@ async function startServer() {
   });
 
   // API Routes
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", loginLimiter, async (req, res) => {
     try {
       let { login, password } = req.body;
       const sanitizedLogin = sanitizeLogin(login);
@@ -783,8 +826,24 @@ async function startServer() {
   }
 
   const PORT = parseInt(process.env.PORT || "3000");
+  
+  /**
+   * NOTA SOBRE HTTPS:
+   * Para habilitar HTTPS localmente, você pode usar o pacote 'https' do Node.js:
+   * 
+   * const https = await import('https');
+   * const fs = await import('fs');
+   * const options = {
+   *   key: fs.readFileSync('caminho/para/chave.pem'),
+   *   cert: fs.readFileSync('caminho/para/certificado.pem')
+   * };
+   * https.createServer(options, app).listen(PORT, "0.0.0.0", () => { ... });
+   */
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor Helpdesk rodando na porta ${PORT}`);
+    console.log(`[${process.env.NODE_ENV || 'development'}] Servidor Helpdesk rodando na porta ${PORT}`);
+    if (process.env.NODE_ENV === "production") {
+      console.log("Segurança: Helmet, CORS e Rate Limiting ATIVOS.");
+    }
   });
 }
 
