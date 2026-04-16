@@ -824,8 +824,9 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-
-  const PORT = parseInt(process.env.PORT || "3000");
+  
+  // Porta 5000 conforme solicitado para o ambiente local (Requirement 3)
+  const PORT = parseInt(process.env.PORT || "5000");
   
   /**
    * NOTA SOBRE HTTPS:

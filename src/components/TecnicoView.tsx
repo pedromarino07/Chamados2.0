@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Ticket, Category } from '../types';
-import { Clock, CheckCircle2, AlertCircle, PauseCircle, UserPlus, ExternalLink, PlusCircle, History, RotateCcw, Activity } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, AlertCircle, PauseCircle, UserPlus, ExternalLink, PlusCircle, History, RotateCcw, Activity } from 'lucide-react';
 import { motion } from 'motion/react';
 import TicketModal from './TicketModal';
 import TicketHistoryList from './TicketHistoryList';
@@ -54,12 +54,23 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
   };
 
   useEffect(() => {
-    fetchPaginatedTickets(1);
+    fetchPaginatedTickets(pagination.currentPage);
     const interval = setInterval(() => {
       fetchPaginatedTickets(pagination.currentPage, true);
     }, 5000);
     return () => clearInterval(interval);
   }, [activeTab, localSearch, pagination.currentPage]);
+
+  const handleTabChange = (tab: 'queue' | 'history') => {
+    setActiveTab(tab);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleSearchChange = (val: string) => {
+    setLocalSearch(val);
+    onSearch(val);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
 
   const handleAction = async (ticketId: number, action: string, extraData: any = {}) => {
     setLoading(true);
@@ -161,10 +172,7 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
               type="text" 
               placeholder="Buscar por descrição..." 
               value={localSearch}
-              onChange={(e) => {
-                setLocalSearch(e.target.value);
-                onSearch(e.target.value);
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full pl-10 pr-4 py-3 text-sm border border-black/5 bg-white rounded-xl focus:ring-2 focus:ring-brand-orange outline-none shadow-sm transition-all"
             />
             <RotateCcw className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 rotate-90" />
@@ -173,18 +181,18 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
             onClick={() => setShowModal(true)}
             className="bg-brand-orange text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
           >
-            <PlusCircle className="w-5 h-5" />
-            + Abrir Chamado
+            <Plus className="w-5 h-5" />
+            Abrir Chamado
           </button>
           <div className="flex bg-white rounded-xl p-1 border border-black/5 shadow-sm">
             <button 
-              onClick={() => setActiveTab('queue')}
+              onClick={() => handleTabChange('queue')}
               className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'queue' ? 'bg-brand-blue text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Fila Ativa
             </button>
             <button 
-              onClick={() => setActiveTab('history')}
+              onClick={() => handleTabChange('history')}
               className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-brand-blue text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Meu Histórico
@@ -252,25 +260,17 @@ export default function TecnicoView({ user, tickets, categories, onUpdate, onSea
             {pagination.totalPages > 1 && (
               <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
                 <button 
-                  onClick={() => fetchPaginatedTickets(pagination.currentPage - 1)}
+                  onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
                   disabled={pagination.currentPage === 1}
                   className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   Anterior
                 </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                    <button
-                      key={pageNum}
-                      onClick={() => fetchPaginatedTickets(pageNum)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${pagination.currentPage === pageNum ? 'bg-brand-orange text-white shadow-md scale-110' : 'text-brand-gray hover:bg-gray-200'}`}
-                    >
-                      {pageNum}
-                    </button>
-                  ))}
-                </div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Página {pagination.currentPage} de {pagination.totalPages}
+                </span>
                 <button 
-                  onClick={() => fetchPaginatedTickets(pagination.currentPage + 1)}
+                  onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.min(pagination.totalPages, prev.currentPage + 1) }))}
                   disabled={pagination.currentPage === pagination.totalPages}
                   className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >

@@ -50,7 +50,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const renderView = () => {
     switch (user.role) {
       case 'admin':
-        return <AdminView user={user} tickets={tickets} categories={categories} onUpdate={() => fetchTickets(searchTerm)} activeSubView={activeSubView} />;
+        return <AdminView user={user} tickets={tickets} categories={categories} onUpdate={() => { fetchTickets(searchTerm); fetchCategories(); }} activeSubView={activeSubView} />;
       case 'tecnico':
         return <TecnicoView user={user} tickets={tickets} categories={categories} onUpdate={() => fetchTickets(searchTerm)} onSearch={setSearchTerm} />;
       default:

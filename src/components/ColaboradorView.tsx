@@ -25,9 +25,9 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
   const [loading, setLoading] = useState(false);
   const [displayTickets, setDisplayTickets] = useState<Ticket[]>([]);
 
-  const fetchPaginatedTickets = async (page: number) => {
+  const fetchPaginatedTickets = async (page: number, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const statusFilter = activeTab === 'status' ? 'active' : 'finished';
       const response = await fetch(`/api/tickets?userId=${user.id}&role=${user.role}&page=${page}&limit=10&statusFilter=${statusFilter}${localSearch ? `&search=${encodeURIComponent(localSearch)}` : ''}`);
       const data = await response.json();
@@ -40,13 +40,28 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
     } catch (err) {
       console.error('Erro ao buscar chamados');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPaginatedTickets(1);
-  }, [activeTab, localSearch]);
+    fetchPaginatedTickets(pagination.currentPage);
+    const interval = setInterval(() => {
+      fetchPaginatedTickets(pagination.currentPage, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeTab, localSearch, pagination.currentPage]);
+
+  const handleTabChange = (tab: 'status' | 'history') => {
+    setActiveTab(tab);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleSearchChange = (val: string) => {
+    setLocalSearch(val);
+    onSearch(val);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -83,10 +98,7 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
               type="text" 
               placeholder="Buscar por descrição..." 
               value={localSearch}
-              onChange={(e) => {
-                setLocalSearch(e.target.value);
-                onSearch(e.target.value);
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full pl-10 pr-4 py-3 text-sm border border-black/5 bg-white rounded-xl focus:ring-2 focus:ring-brand-orange outline-none shadow-sm transition-all"
             />
             <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -99,20 +111,20 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
             className="bg-brand-orange text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
           >
             <Plus className="w-5 h-5" />
-            Abrir Novo Chamado
+            Abrir Chamado
           </button>
         </div>
       </header>
 
       <div className="flex border-b border-gray-200 overflow-x-auto custom-scrollbar">
         <button 
-          onClick={() => setActiveTab('status')}
+          onClick={() => handleTabChange('status')}
           className={`px-6 py-3 font-bold text-sm uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'status' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
         >
           Status (Ativos)
         </button>
         <button 
-          onClick={() => setActiveTab('history')}
+          onClick={() => handleTabChange('history')}
           className={`px-6 py-3 font-bold text-sm uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTab === 'history' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
         >
           Meu Histórico
@@ -224,25 +236,17 @@ export default function ColaboradorView({ user, tickets, categories, onUpdate, o
         {pagination.totalPages > 1 && (
           <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
             <button 
-              onClick={() => fetchPaginatedTickets(pagination.currentPage - 1)}
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
               disabled={pagination.currentPage === 1}
               className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               Anterior
             </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => fetchPaginatedTickets(pageNum)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${pagination.currentPage === pageNum ? 'bg-brand-orange text-white shadow-md scale-110' : 'text-brand-gray hover:bg-gray-200'}`}
-                >
-                  {pageNum}
-                </button>
-              ))}
-            </div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              Página {pagination.currentPage} de {pagination.totalPages}
+            </span>
             <button 
-              onClick={() => fetchPaginatedTickets(pagination.currentPage + 1)}
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.min(pagination.totalPages, prev.currentPage + 1) }))}
               disabled={pagination.currentPage === pagination.totalPages}
               className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >

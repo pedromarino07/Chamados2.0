@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Ticket, Category } from '../types';
-import { BarChart3, Users, PieChart, TrendingUp, Filter, Plus, Clock, CheckCircle2, AlertCircle, Activity, PlusCircle } from 'lucide-react';
+import { BarChart3, Users, PieChart, TrendingUp, Filter, Plus, Clock, CheckCircle2, AlertCircle, Activity, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import TicketModal from './TicketModal';
 import UserManagement from './admin/UserManagement';
@@ -45,6 +45,11 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [monitoringStatus, setMonitoringStatus] = useState<'active' | 'finished'>('active');
+
+  // Internal pagination for stats
+  const [sectorPage, setSectorPage] = useState(1);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const itemsPerPage = 5;
 
   const fetchMonitoringTickets = useCallback(async (page: number, search: string = '', status: string = 'active') => {
     try {
@@ -97,9 +102,16 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
 
   if (loading || !stats) return <div className="animate-pulse flex items-center justify-center h-64 text-gray-400 font-bold uppercase tracking-widest">Carregando estatísticas...</div>;
 
-  const renderDashboard = () => (
-    <div className="space-y-8">
-      {/* Stats Grid */}
+  const renderDashboard = () => {
+    const paginatedSectors = stats.bySector.slice((sectorPage - 1) * itemsPerPage, sectorPage * itemsPerPage);
+    const totalSectorPages = Math.ceil(stats.bySector.length / itemsPerPage);
+
+    const paginatedCategories = stats.byCategory.slice((categoryPage - 1) * itemsPerPage, categoryPage * itemsPerPage);
+    const totalCategoryPages = Math.ceil(stats.byCategory.length / itemsPerPage);
+
+    return (
+      <div className="space-y-8">
+        {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
         <div className="bg-brand-blue p-4 md:p-6 rounded-2xl border border-black/5 shadow-lg shadow-brand-blue/20 text-white">
           <div className="flex items-center gap-3 mb-4">
@@ -168,7 +180,7 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
             Chamados por Setor
           </h3>
           <div className="space-y-4">
-            {stats.bySector.map((s, idx) => (
+            {paginatedSectors.map((s, idx) => (
               <div key={idx}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="font-medium text-gray-600">{s.sector}</span>
@@ -184,6 +196,29 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
               </div>
             ))}
           </div>
+
+          {/* Sector Pagination */}
+          {totalSectorPages > 1 && (
+            <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-center gap-4">
+              <button 
+                onClick={() => setSectorPage(prev => Math.max(1, prev - 1))}
+                disabled={sectorPage === 1}
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </button>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                {sectorPage} / {totalSectorPages}
+              </span>
+              <button 
+                onClick={() => setSectorPage(prev => Math.min(totalSectorPages, prev + 1))}
+                disabled={sectorPage === totalSectorPages}
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Category Distribution */}
@@ -193,7 +228,7 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
             Principais Categorias
           </h3>
           <div className="space-y-4">
-            {stats.byCategory.map((c, idx) => (
+            {paginatedCategories.map((c, idx) => (
               <div key={idx} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -203,6 +238,29 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
               </div>
             ))}
           </div>
+
+          {/* Category Pagination */}
+          {totalCategoryPages > 1 && (
+            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-center gap-4">
+              <button 
+                onClick={() => setCategoryPage(prev => Math.max(1, prev - 1))}
+                disabled={categoryPage === 1}
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </button>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                {categoryPage} / {totalCategoryPages}
+              </span>
+              <button 
+                onClick={() => setCategoryPage(prev => Math.min(totalCategoryPages, prev + 1))}
+                disabled={categoryPage === totalCategoryPages}
+                className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -305,37 +363,6 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
           </table>
         </div>
 
-        {/* Pagination Controls */}
-        {monitoringData.totalPages > 1 && (
-          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
-            <button 
-              onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
-              disabled={monitoringData.currentPage === 1}
-              className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              Anterior
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: monitoringData.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: pageNum }))}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${monitoringData.currentPage === pageNum ? 'bg-brand-orange text-white shadow-md scale-110' : 'text-brand-gray hover:bg-gray-200'}`}
-                >
-                  {pageNum}
-                </button>
-              ))}
-            </div>
-            <button 
-              onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
-              disabled={monitoringData.currentPage === monitoringData.totalPages}
-              className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-gray hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              Próximo
-            </button>
-          </div>
-        )}
-
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-gray-100">
           {monitoringData.tickets.map((ticket) => (
@@ -385,44 +412,45 @@ export default function AdminView({ user, tickets, categories, onUpdate, activeS
         {/* Pagination Controls */}
         <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30">
           <button 
-            onClick={() => fetchMonitoringTickets(monitoringData.currentPage - 1)}
+            onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
             disabled={monitoringData.currentPage === 1}
-            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-blue hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             Anterior
           </button>
           <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, monitoringData.totalPages) }, (_, i) => {
-              // Show up to 5 pages around current page
-              let pageNum = monitoringData.currentPage - 2 + i;
-              if (monitoringData.currentPage <= 2) pageNum = i + 1;
-              if (monitoringData.currentPage >= monitoringData.totalPages - 1) pageNum = monitoringData.totalPages - 4 + i;
-              
-              if (pageNum > 0 && pageNum <= monitoringData.totalPages) {
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => fetchMonitoringTickets(pageNum)}
-                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${monitoringData.currentPage === pageNum ? 'bg-gray-900 text-white shadow-md scale-110' : 'text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              }
-              return null;
-            })}
+            {Array.from({ length: monitoringData.totalPages }, (_, i) => i + 1)
+              .filter(p => {
+                if (monitoringData.totalPages <= 5) return true;
+                const current = monitoringData.currentPage;
+                const total = monitoringData.totalPages;
+                if (current <= 3) return p <= 5;
+                if (current >= total - 2) return p > total - 5;
+                return p >= current - 2 && p <= current + 2;
+              })
+              .map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: pageNum }))}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${monitoringData.currentPage === pageNum ? 'bg-brand-orange text-white shadow-md scale-110' : 'text-brand-blue hover:bg-gray-200'}`}
+                >
+                  {pageNum}
+                </button>
+              ))
+            }
           </div>
           <button 
-            onClick={() => fetchMonitoringTickets(monitoringData.currentPage + 1)}
-            disabled={monitoringData.currentPage === monitoringData.totalPages}
-            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            onClick={() => setMonitoringData(prev => ({ ...prev, currentPage: Math.min(monitoringData.totalPages, prev.currentPage + 1) }))}
+            disabled={monitoringData.currentPage === monitoringData.totalPages || monitoringData.totalPages === 0}
+            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-blue hover:text-brand-orange disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             Próximo
           </button>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-8">
